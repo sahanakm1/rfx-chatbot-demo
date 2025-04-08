@@ -15,11 +15,12 @@ Prerequisites
 
 - Python 3.x
 - `pip` for package management
+- Install Visual Studio code
 
-To run this project locally, follow these steps:
+To run this project locally, follow these steps:  (Please clone the Development branch and not Main branch)
 
 ```bash
-git clone https://github.com/username/rfx-chatbot-demo.git
+git clone https://github.com/sahanakm1/rfx-chatbot-demo.git
 cd rfx-chatbot-demo
 
 ### **Create a Virtual Environment**
