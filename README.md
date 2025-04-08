@@ -1,0 +1,54 @@
+# RFx Chatbot
+
+This is a chatbot application designed to assist in generating RFx (Request for Information, Request for Proposal, Request for Quotation) documents based on user inputs. It integrates multiple components for document summarization, draft generation, and decision-making on RFx types.
+
+## Features
+
+- **Product Category Identification**: Identifies the category of the product to generate RFx documents.
+- **RFx Type Selection**: Allows the user to specify the type of RFx document required (RFI, RFQ, RFP).
+- **Document Summarization**: Summarizes previous documents/templates for better RFx generation.
+- **Draft Generation**: Generates RFx drafts in Word format based on user inputs.
+- **Easy Interface**: Interactive chatbot interface for seamless user experience.
+
+## Installation
+
+To run this project locally, follow these steps:
+
+### Prerequisites
+
+- Python 3.x
+- `pip` for package management
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/username/rfx-chatbot-demo.git
+cd rfx-chatbot-demo
+
+### **Create a Virtual Environment**
+
+python -m venv venv
+.\venv\Scripts\activate
+
+### Install Dependencies
+
+pip install -r requirements.txt
+
+
+### Run the Application
+
+streamlit run app.py
+
+
+Steps to Contribute:
+Fork the repository.
+
+Create a new branch (git checkout -b feature-branch).
+
+Make your changes.
+
+Commit your changes (git commit -m 'Add feature').
+
+Push to your fork (git push origin feature-branch).
+
+Create a pull request.
