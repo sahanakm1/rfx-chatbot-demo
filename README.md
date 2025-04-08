@@ -11,15 +11,12 @@ This is a chatbot application designed to assist in generating RFx (Request for 
 - **Easy Interface**: Interactive chatbot interface for seamless user experience.
 
 ## Installation
-
-To run this project locally, follow these steps:
-
-### Prerequisites
+Prerequisites
 
 - Python 3.x
 - `pip` for package management
 
-### Clone the Repository
+To run this project locally, follow these steps:
 
 ```bash
 git clone https://github.com/username/rfx-chatbot-demo.git
@@ -34,21 +31,15 @@ python -m venv venv
 
 pip install -r requirements.txt
 
-
 ### Run the Application
 
 streamlit run app.py
 
+**Steps to Contribute:**
 
-Steps to Contribute:
 Fork the repository.
-
 Create a new branch (git checkout -b feature-branch).
-
 Make your changes.
-
 Commit your changes (git commit -m 'Add feature').
-
 Push to your fork (git push origin feature-branch).
-
 Create a pull request.
