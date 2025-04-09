@@ -13,7 +13,7 @@ This is a chatbot application designed to assist in generating RFx (Request for 
 ## Installation
 Prerequisites
 
-- Python 3.x
+- Python 3.12.x
 - `pip` for package management
 - Install Visual Studio code
 
@@ -26,7 +26,8 @@ cd rfx-chatbot-demo
 ### **Create a Virtual Environment**
 
 python -m venv venv
-.\venv\Scripts\activate
+.\venv\Scripts\activate  (venv/Scripts/activate)
+
 
 ### Install Dependencies
 
@@ -34,7 +35,7 @@ pip install -r requirements.txt
 
 ### Run the Application
 
-streamlit run app.py
+Streamlit run chatbot_app.py
 
 **Steps to Contribute:**
 
