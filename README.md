@@ -1,4 +1,4 @@
-# RFx Chatbot
+# RFx AI Builder Assistant
 
 This is a chatbot application designed to assist in generating RFx (Request for Information, Request for Proposal, Request for Quotation) documents based on user inputs. It integrates multiple components for document summarization, draft generation, and decision-making on RFx types.
 
