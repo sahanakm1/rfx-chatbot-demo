@@ -1,6 +1,7 @@
 import streamlit as st
 from agents import category_identifier, rfx_type_decider, document_summarizer, draft_generator
 import base64
+import json
  
 st.set_page_config(page_title="RFx Chatbot", layout="centered")
 st.title("RFx Assistant Chatbot")
@@ -73,11 +74,25 @@ if user_input:
         st.chat_message("assistant").write(st.session_state.summary)
         st.session_state.step = 3
  
+
     # Step 3: Generate and download draft
     elif st.session_state.step == 3:
         st.chat_message("assistant").write("Generating your Word draft...")
-        path = draft_generator.create_draft(st.session_state.summary, st.session_state.category, st.session_state.rfx_type)
-        st.session_state.draft_path = path
-        with open(path, "rb") as file:
+        sample_json = '''
+        {
+            "A": {"A.1": "Details about JTI...", "A.2": "Our engagement includes..."},
+            "B": {"B.1": "Response details...", "B.2": "Timeline and schedule...", "B.3": "Query handling process...", "B.4": "Evaluation criteria explained..."},
+            "C": {"C.1": "Scope and objectives...", "C.2": "Requirements from JTI...", "C.3": "How proposals will be evaluated..."},
+            "D": {"D.1": "Executive summary of our approach...", "D.2": "Additional proposal elements..."},
+            "E": "Appendices and extra content..."
+        }
+        '''
+        data = json.loads(sample_json)
+        path2 = draft_generator.build_doc_from_json(data)
+        
+        
+        st.session_state.draft_path = path2
+        with open(path2, "rb") as file:
             st.download_button("📄 Download RFx Draft", file, file_name="rfx_draft.docx")
         st.session_state.step = 4
+
