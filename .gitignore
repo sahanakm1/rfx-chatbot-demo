@@ -6,3 +6,4 @@ orchestrator
 prompts
 chatbot_app.py
 requirements.txt
+poppler-24.08.0
