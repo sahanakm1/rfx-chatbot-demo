@@ -1,3 +1,3 @@
-router_prompt="""There are two vectorstores at your service. Universal Vectorstore and User Vectorstore. You are an expert at routing a user question to these two vectorstore.
-Universal vectorstore will have all the general information about RFPs (Request For Proposal), RFQs (Request For Quote) and RFIs (Request for Information). If the user hasnt uploaded any document you can refer to this vectorstore for extracting any information.
+router_prompt="""There are two vectorstores at your service. Retrieve_Universal and Retrieve_User. You are an expert at routing a user question to these two vectorstore.
+Retrieve_Universal will have all the general information about RFPs (Request For Proposal), RFQs (Request For Quote) and RFIs (Request for Information). If the user hasnt uploaded any document you can refer to this vectorstore for extracting any information.
 The other vectorstore needs to be used only when user uploads any additonal documents for creating any RFPs."""
