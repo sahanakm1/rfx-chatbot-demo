@@ -17,7 +17,8 @@ if "conversation_state" not in st.session_state:
         "output_message": ""
     }
 
-# Display chat history
+# Display chat historygit checkout -b feature/chat-agent-enhancement
+
 for msg in st.session_state.chat_history:
     st.chat_message(msg["role"]).write(msg["content"])
 
