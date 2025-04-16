@@ -7,3 +7,9 @@ python-dotenv
 transformers 
 torch
 python-docx
+pypdf
+langgraph
+langchain-community 
+langchain-core 
+langchain_ollama
+langchain-qdrant qdrant-client
