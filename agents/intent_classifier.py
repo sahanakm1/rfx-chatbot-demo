@@ -13,7 +13,6 @@ def normalize_rfx_type(value: str) -> str:
         return "RFI"
     return "Unknown"
 
-PROMPT_PATH = "prompts/classification_prompt.txt"
 
 def classify_by_intent(user_input: str, model_name: str = "mistral") -> str:
     with open(PROMPT_PATH) as f:
