@@ -1,14 +1,9 @@
-agents
-assets
-docs
 drafts
-orchestrator
-chatbot_app.py
-requirements.txt
 poppler-24.08.0
 tmp
 __pycache__
 reqs
 .venv
 *.pyc
-reqs
+.DS_Store
+qdrant_store
