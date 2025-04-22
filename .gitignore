@@ -3,3 +3,8 @@ __pycache__/
 .env
 *.pyc
 .DS_Store
+poppler-24.08.0
+*.log
+tmp
+reqs
+drafts
