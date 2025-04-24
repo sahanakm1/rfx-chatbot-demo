@@ -6,7 +6,7 @@ from prompts.classification_prompt import classification_prompt
 
 
 class rag_classifier:
-    def __init__(self, chat_context, model_name: str = "mistral"):
+    def __init__(self, chat_context=None, model_name: str = "mistral"):
         self.chat_context = chat_context
         #self.log_callback = log_callback
         self.model_name = model_name
