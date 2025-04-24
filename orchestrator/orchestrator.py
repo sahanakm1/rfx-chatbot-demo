@@ -1,75 +1,93 @@
-import streamlit as st
-from orchestrator.orchestrator import Orchestrator
+# orchestrator.py
 
-# Page setup
-st.set_page_config(page_title="RFx AI Builder Assistant", layout="centered")
-st.title("RFx AI Builder Assistant")
+from agents.brief_intake_agent import run_brief_intake, update_brief_with_user_response
+from agents.chat_agent import generate_question_for_section
+from agents.classification_agent import classify_rfx
 
-# Load system prompt
-with open("prompts/initial_prompt.txt") as f:
-    system_prompt = f.read()
 
-# Session state
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "uploaded_file" not in st.session_state:
-    st.session_state.uploaded_file = None
-if "step" not in st.session_state:
-    st.session_state.step = 0
-if "rfx_type" not in st.session_state:
-    st.session_state.rfx_type = None
-if "orchestrator" not in st.session_state:
-    st.session_state.orchestrator = Orchestrator()
+RFX_TYPE_LABELS = {
+    "RFP": "Request for Proposal",
+    "RFQ": "Request for Quotation",
+    "RFI": "Request for Information"
+}
 
-# Show chat history
-for msg in st.session_state.chat_history:
-    st.chat_message(msg["role"]).write(msg["content"])
+def initialize_state():
+    return {
+        "step": 0,
+        "user_input": "",
+        "rfx_type": None,
+        "uploaded_text": "",
+        "output_message": "",
+        "logs": [],
+        "manual_selected": False,
+        "brief": {},
+        "pending_question": None,
+        "missing_sections": []
+    }
 
-# Step 0: Greeting only
-if st.session_state.step == 0:
-    st.chat_message("assistant").write("Hi! I’m your RFx assistant. How can I help you today?")
-    st.session_state.chat_history.append({"role": "assistant", "content": "Hi! I’m your RFx assistant. How can I help you today?"})
-    st.session_state.step = 1
+def run_classification(state):
+    logs = []
 
-# Step 1: Wait for user input
-if st.session_state.step == 1:
-    user_input = st.chat_input("Describe what you need help with...")
-    if user_input:
-        st.chat_message("user").write(user_input)
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        st.session_state.step = 2
-        st.session_state.chat_context = user_input
+    def log_callback(msg):
+        logs.append(msg)
 
-# Step 2: Ask for document or scratch
-if st.session_state.step == 2:
-    st.chat_message("assistant").write("Would you like to upload an existing RFx document or create one from scratch?")
-    choice = st.radio("Choose one:", ["Upload Document", "Start from Scratch"])
-    if choice == "Upload Document":
-        uploaded_file = st.file_uploader("Upload RFx Document", type=["pdf", "docx", "txt"])
-        if uploaded_file and uploaded_file != st.session_state.uploaded_file:
-            st.session_state.uploaded_file = uploaded_file
-            st.chat_message("assistant").write(f"Thanks for uploading '{uploaded_file.name}'. Sending it for classification...")
-            st.session_state.chat_history.append({"role": "assistant", "content": f"Document '{uploaded_file.name}' uploaded."})
+    result = classify_rfx(
+        text=state.get("uploaded_text", ""),
+        user_input=state.get("user_input", ""),
+        log_callback=log_callback
+    )
 
-            # Read and classify using orchestrator
-            content = uploaded_file.read().decode("utf-8", errors="ignore")
-            rfx_type = st.session_state.orchestrator.handle_document_upload(content, st.session_state.get("chat_context", ""))
-            st.chat_message("assistant").write(f"This appears to be a {rfx_type}.")
-            st.session_state.chat_history.append({"role": "assistant", "content": f"Classified as: {rfx_type}"})
-            st.session_state.rfx_type = rfx_type
-            st.session_state.step = 3
-    elif choice == "Start from Scratch":
-        st.chat_message("assistant").write("Great! Let me guide you through creating your RFx from scratch.")
-        st.session_state.chat_history.append({"role": "assistant", "content": "User chose to start from scratch."})
+    state["rfx_type"] = result.get("rfx_type")
+    state["logs"] = logs + result.get("logs", [])
+    return state["rfx_type"], RFX_TYPE_LABELS.get(state["rfx_type"], "")
 
-        # Ask orchestrator to classify based on user input
-        user_input = st.session_state.get("chat_context", "")
-        rfx_type = st.session_state.orchestrator.handle_chat_intent(user_input)
-        st.chat_message("assistant").write(f"Thanks! Based on our conversation, this seems to be a {rfx_type}.")
-        st.session_state.chat_history.append({"role": "assistant", "content": f"Classified as: {rfx_type}"})
-        st.session_state.rfx_type = rfx_type
-        st.session_state.step = 3
 
-# Step 3 — Placeholder for continuing logic
-if st.session_state.step == 3:
-    st.chat_message("assistant").write("Next, I will gather details about your request... (To be implemented)")
+
+
+def run_brief(state):
+    brief_data, missing_sections = run_brief_intake(
+        state.get("rfx_type"),
+        state.get("user_input", ""),
+        state.get("uploaded_text", "")
+    )
+
+    state["brief"] = brief_data
+    state["missing_sections"] = missing_sections
+
+    if missing_sections:
+        next_section = missing_sections[0]
+        question = generate_question_for_section(next_section)
+        state["pending_question"] = {
+            "section": next_section,
+            "question": question
+        }
+        return f"I need more information about **{next_section}**: {question}"
+
+    return "Initial brief has been generated successfully."
+
+def process_user_response_to_question(state, user_response: str):
+    """
+    Stores the user's answer to a pending question and updates the brief.
+    Then checks if more sections are missing and prepares the next question.
+    """
+    pending = state.get("pending_question")
+    if not pending:
+        return "No pending question to process."
+
+    section = pending["section"]
+    state["brief"] = update_brief_with_user_response(state["brief"], section, user_response)
+    
+    # Remove the answered section from the missing list
+    state["missing_sections"] = [s for s in state["missing_sections"] if s != section]
+    state["pending_question"] = None
+
+    if state["missing_sections"]:
+        next_section = state["missing_sections"][0]
+        question = generate_question_for_section(next_section)
+        state["pending_question"] = {
+            "section": next_section,
+            "question": question
+        }
+        return f"Thanks! Now, about **{next_section}**: {question}"
+
+    return "Thank you. The brief is now complete."
