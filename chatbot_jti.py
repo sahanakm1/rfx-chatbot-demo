@@ -9,6 +9,7 @@ from pprint import pprint
 from agents.classification_agent import classify_rfx
 from agents.rag_classifier import rag_classifier
 from agents.brief_intake_agent import brief_intake
+from agents.draft_generator import build_doc_from_json
 from creating_retriever import universal_retrieval,user_retriever
 
 
@@ -44,7 +45,12 @@ if "conversation_state" not in st.session_state:
         "us_retriever": None,
         "add_txt":"",
         "user_filename":"",
-
+        "introduction":"",
+        "response":"",
+        "schedule":"",
+        "scope":"",
+        "thread": None,
+        "section":""
     }
 
 # Show chat history
@@ -138,6 +144,7 @@ if st.session_state.conversation_state["step"] == 2:
         add_txt = ""
         st.session_state.conversation_state["add_txt"] = add_txt
         st.session_state.conversation_state["user_input"] = user_input
+        st.rerun()
 
 if st.session_state.conversation_state["step"] == 4:
     user_input = st.session_state.conversation_state["user_input"]
@@ -176,7 +183,7 @@ if st.session_state.conversation_state["step"] == 3:
 if st.session_state.conversation_state["step"] == 5:
 
     user_input = st.chat_input("Please type 'yes' to proceed or 'no' to change the RFx type.")
-    if user_input: #and user_input.strip().lower() in ["yes","yeah","yep"]:
+    if user_input is not None: #and user_input.strip().lower() in ["yes","yeah","yep"]:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
 
@@ -204,14 +211,315 @@ if st.session_state.conversation_state["step"] == 5:
                 retriever_user = user_retriever(collection_name=collection_name,embeddings=embeddings,path=path,doc_input=content,type_of_retrieval=type_of_retrieval).create_new_vdb()
 
             st.session_state.conversation_state["us_retriever"] = retriever_user
-            st.session_state.conversation_state["step"] = 6
+        st.session_state.conversation_state["step"] = 6
+        st.rerun()
 
 if st.session_state.conversation_state["step"] == 6:
     
-    msg = "Let's create an RFP. First we will create Introduction Section."
+    print("prerit 6")
+    section = "Introduction"
+    st.session_state.conversation_state["section"] = section
+    msg = f"""Let's create an RFP. First {section} Section will be created."""
     st.chat_message("assistant").write(msg)
     st.session_state.chat_history.append({"role": "assistant", "content": msg})
+    
     retriever_input = st.session_state.conversation_state["un_retriever"]
     retriever_user = st.session_state.conversation_state["us_retriever"]
     add_txt = st.session_state.conversation_state["add_txt"]
-    question = add_txt+"Create an Intoduction section for the RFP document, giving a bried overview on JTI (Japan Tobacco International)."
+    
+    question = add_txt+"Create an Intoduction section for the RFP document, giving a brief overview on JTI (Japan Tobacco International)."
+    
+    app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
+
+    inputs = {
+    "question": question
+    }
+    thread = {"configurable": {"thread_id": "1"}}
+    with st.spinner("Generating the Introduction section. Please Wait..."):
+        for output in app.stream(inputs,thread):
+            for key, value in output.items():
+                # Node
+                #print("prerit")
+                pprint(f"Node '{key}':")
+                # Optional: print full state at each node
+                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+            #pprint("\n---\n")
+    
+    if key == '__interrupt__':
+        
+        msg = f"""Don't have enough information on {section} section. Please provide more details."""
+        st.chat_message("assistant").write(msg) 
+        st.session_state.chat_history.append({"role": "assistant", "content": msg})
+
+        
+        st.session_state.conversation_state["app"] = app
+        st.session_state.conversation_state["thread"] = thread
+        st.session_state.conversation_state["step"] = 7
+    
+    else:
+        st.session_state.conversation_state['introduction']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 8
+
+
+if st.session_state.conversation_state["step"] == 7:
+    print("prerit 7")
+    app = st.session_state.conversation_state["app"]
+    thread = st.session_state.conversation_state["thread"]
+    section = st.session_state.conversation_state["section"]
+    user_input = st.chat_input("Please provide more details.")
+
+    if user_input is not None:
+        st.chat_message("user").write(user_input)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
+                for key, value in output.items():
+                    # Node
+                    pprint(f"Node '{key}':")
+                    # Optional: print full state at each node
+                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+                pprint("\n---\n")
+
+        st.session_state.conversation_state['introduction']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 8
+        st.rerun()
+
+
+if st.session_state.conversation_state["step"] == 8:
+    
+    print("prerit 8")
+    section = "Purpose of the RFP: Response"
+    st.session_state.conversation_state["section"] = section
+
+    msg = f"""Creating {section} Section."""
+    st.chat_message("assistant").write(msg)
+    st.session_state.chat_history.append({"role": "assistant", "content": msg})
+    
+    retriever_input = st.session_state.conversation_state["un_retriever"]
+    retriever_user = st.session_state.conversation_state["us_retriever"]
+    add_txt = st.session_state.conversation_state["add_txt"]
+    
+    question = add_txt+f"""Create a {section} section for the RFP document, giving a bried overview of how the responses should be sent to RFP. Please include the following details:
+    1. Last date of subsmission.
+    2. Email IDs of the recipients.
+    3. Submission should be done by email not exceeding 20MB."""
+    
+    app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
+
+    inputs = {
+    "question": question
+    }
+    thread = {"configurable": {"thread_id": "1"}}
+    with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+        for output in app.stream(inputs,thread):
+            for key, value in output.items():
+                # Node
+                #print("prerit")
+                pprint(f"Node '{key}':")
+                # Optional: print full state at each node
+                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+            #pprint("\n---\n")
+    
+    if key == '__interrupt__':
+        
+        msg = f"""Don't have enough information on {section} section. Please provide more details."""
+        st.chat_message("assistant").write(msg) 
+        st.session_state.chat_history.append({"role": "assistant", "content": msg})
+
+        
+        st.session_state.conversation_state["app"] = app
+        st.session_state.conversation_state["thread"] = thread
+        st.session_state.conversation_state["step"] = 9
+    
+    else:
+        st.session_state.conversation_state['response']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 10
+
+
+if st.session_state.conversation_state["step"] == 9:
+    print("prerit 9")
+    app = st.session_state.conversation_state["app"]
+    thread = st.session_state.conversation_state["thread"]
+    section = st.session_state.conversation_state["section"]
+    user_input = st.chat_input("Please provide more details.")
+
+    if user_input is not None:
+        st.chat_message("user").write(user_input)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
+                for key, value in output.items():
+                    # Node
+                    pprint(f"Node '{key}':")
+                    # Optional: print full state at each node
+                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+                pprint("\n---\n")
+
+        st.session_state.conversation_state['response']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 10
+        st.rerun()
+
+
+
+if st.session_state.conversation_state["step"] == 10:
+    
+    print("prerit 10")
+    section = "Purpose of the RFP: Schedule"
+    st.session_state.conversation_state["section"] = section
+    msg = f"""Creating {section} Section."""
+    st.chat_message("assistant").write(msg)
+    st.session_state.chat_history.append({"role": "assistant", "content": msg})
+    
+    retriever_input = st.session_state.conversation_state["un_retriever"]
+    retriever_user = st.session_state.conversation_state["us_retriever"]
+    add_txt = st.session_state.conversation_state["add_txt"]
+    
+    question = add_txt+f"""Create a {section} section for the RFP document, giving a bried overview of what will be the schedule. Please include dates for the following details:
+    1. Distribution of RFP.
+    2. Intent to participate email.
+    3. Submission of clarification questions by email only.
+    4. Distribution of answers to clarification questions.
+    6. Receipt of RFP responses.
+    7. Submission of samples/presentations (if required).
+    8. Selection Decision."""
+    
+    app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
+
+    inputs = {
+    "question": question
+    }
+    thread = {"configurable": {"thread_id": "1"}}
+    with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+        for output in app.stream(inputs,thread):
+            for key, value in output.items():
+                # Node
+                #print("prerit")
+                pprint(f"Node '{key}':")
+                # Optional: print full state at each node
+                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+            #pprint("\n---\n")
+    
+    if key == '__interrupt__':
+        
+        msg = f"""Don't have enough information on {section} section. Please provide more details."""
+        st.chat_message("assistant").write(msg) 
+        st.session_state.chat_history.append({"role": "assistant", "content": msg})
+
+        
+        st.session_state.conversation_state["app"] = app
+        st.session_state.conversation_state["thread"] = thread
+        st.session_state.conversation_state["step"] = 11
+    
+    else:
+        st.session_state.conversation_state['schedule']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 12
+        st.rerun()
+
+
+if st.session_state.conversation_state["step"] == 11:
+    print("prerit 11")
+    app = st.session_state.conversation_state["app"]
+    thread = st.session_state.conversation_state["thread"]
+    section = st.session_state.conversation_state["section"]
+    user_input = st.chat_input("Please provide more details.")
+
+    if user_input is not None:
+        st.chat_message("user").write(user_input)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
+                for key, value in output.items():
+                    # Node
+                    pprint(f"Node '{key}':")
+                    # Optional: print full state at each node
+                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+                pprint("\n---\n")
+
+        st.session_state.conversation_state['schedule']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 12
+        st.rerun()
+
+
+if st.session_state.conversation_state["step"] == 12:
+    
+    print("prerit 12")
+    section = "Project Scope"
+    st.session_state.conversation_state["section"] = section
+    msg = f"""Creating {section} Section."""
+    st.chat_message("assistant").write(msg)
+    st.session_state.chat_history.append({"role": "assistant", "content": msg})
+    
+    retriever_input = st.session_state.conversation_state["un_retriever"]
+    retriever_user = st.session_state.conversation_state["us_retriever"]
+    add_txt = st.session_state.conversation_state["add_txt"]
+    
+    question = add_txt+f"""Create a {section} section for the RFP document, giving a bried overview of what will be the objective and scope of the project will be."""
+    
+    app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
+
+    inputs = {
+    "question": question
+    }
+    thread = {"configurable": {"thread_id": "1"}}
+    with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+        for output in app.stream(inputs,thread):
+            for key, value in output.items():
+                # Node
+                #print("prerit")
+                pprint(f"Node '{key}':")
+                # Optional: print full state at each node
+                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+            #pprint("\n---\n")
+    
+    if key == '__interrupt__':
+        
+        msg = f"""Don't have enough information on {section} section. Please provide more details."""
+        st.chat_message("assistant").write(msg) 
+        st.session_state.chat_history.append({"role": "assistant", "content": msg})
+
+        
+        st.session_state.conversation_state["app"] = app
+        st.session_state.conversation_state["thread"] = thread
+        st.session_state.conversation_state["step"] = 13
+    
+    else:
+        st.session_state.conversation_state['scope']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 14
+        st.rerun()
+
+
+if st.session_state.conversation_state["step"] == 13:
+    print("prerit 13")
+    app = st.session_state.conversation_state["app"]
+    thread = st.session_state.conversation_state["thread"]
+    section = st.session_state.conversation_state["section"]
+    user_input = st.chat_input("Please provide more details.")
+
+    if user_input is not None:
+        st.chat_message("user").write(user_input)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
+                for key, value in output.items():
+                    # Node
+                    pprint(f"Node '{key}':")
+                    # Optional: print full state at each node
+                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+                pprint("\n---\n")
+
+        st.session_state.conversation_state['scope']=value["generation"]#{"A":value["generation"]}
+        st.session_state.conversation_state["step"] = 14
+        st.rerun()
+
+if st.session_state.conversation_state["step"] == 14:
+    print("Last Prerit")
+
+    final_doc = {
+        "A": {"A.1": st.session_state.conversation_state['introduction']},
+        "B": {"B.1": st.session_state.conversation_state['response'], "B.2": st.session_state.conversation_state['schedule']},
+        "C": {"C.1": st.session_state.conversation_state['scope']}
+    }
+
+    build_doc_from_json(data_json=final_doc)
+    st.session_state.conversation_state["step"] = 1
+    st.rerun()
