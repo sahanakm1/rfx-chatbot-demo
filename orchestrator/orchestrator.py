@@ -3,7 +3,7 @@
 from agents.brief_intake_agent import run_brief_intake, update_brief_with_user_response
 from agents.chat_agent import generate_question_for_section
 from agents.classification_agent import classify_rfx
-
+from agents.draft_generator import build_doc_from_json
 
 RFX_TYPE_LABELS = {
     "RFP": "Request for Proposal",
@@ -91,3 +91,8 @@ def process_user_response_to_question(state, user_response: str):
         return f"Thanks! Now, about **{next_section}**: {question}"
 
     return "Thank you. The brief is now complete."
+
+def generate_final_document(state) -> str:
+    brief = state.get("brief", {})
+    file_path = build_doc_from_json(brief)
+    return file_path

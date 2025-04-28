@@ -124,6 +124,7 @@ if state["step"] == 4 and not state.get("manual_selected"):
             "role": "assistant",
             "content": f"User selected {selected}. {msg}"
         })
+        state["step"] = 5
         st.rerun()
 
 
@@ -139,3 +140,31 @@ if state.get("pending_question"):
         st.chat_message("assistant").write(response)
         st.session_state.chat_history.append({"role": "assistant", "content": response})
         st.rerun()
+
+
+# Step 5: Generate and download final document
+if state["step"] == 5 and not state.get("document_generated"):
+    
+    if st.button("📄 Generate Final Document"):
+        with st.spinner("Generating Word document..."):
+            from orchestrator.orchestrator import generate_final_document
+            file_path = generate_final_document(state)
+            state["document_generated"] = True
+            state["document_path"] = file_path
+
+            msg = "The final document has been generated. You can download it below."
+            st.chat_message("assistant").write(msg)
+            st.session_state.chat_history.append({"role": "assistant", "content": msg})
+            st.rerun()
+
+
+# Step 5 (continued): Show download link if document exists
+if  state["step"] == 5 and state.get("document_generated") and state.get("document_path"):
+    st.success("🎉 Document generated!")
+    with open(state["document_path"], "rb") as f:
+        st.download_button(
+            label="⬇️ Download Generated Document",
+            data=f,
+            file_name="Generated_RFQ.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
