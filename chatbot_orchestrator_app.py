@@ -73,9 +73,17 @@ if state["step"] == 1:
     if user_input:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
-        state["user_input"] = user_input
-        state["step"] = 2
-        st.rerun()
+
+        if user_input.strip().lower() in ["hi", "hello", "hey"]:
+            msg = "Hi! Could you please describe what you're looking to build?"
+            st.chat_message("assistant").write(msg)
+            st.session_state.chat_history.append({"role": "assistant", "content": msg})
+            #st.session_state.conversation_state["step"] = 2
+            #st.rerun()
+        else:
+            state["user_input"] = user_input
+            state["step"] = 2
+            st.rerun()
 
 # Step 2: Classification
 if state["step"] == 2:
