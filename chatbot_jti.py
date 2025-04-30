@@ -11,7 +11,8 @@ from agents.rag_classifier import rag_classifier
 from agents.brief_intake_agent import brief_intake
 from agents.draft_generator import build_doc_from_json
 from creating_retriever import universal_retrieval,user_retriever
-
+import orchestrator.orchestrator as oc
+from prompts.questions_for_sections import intro, pop_response,pop_schedule,scope
 
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.documents import Document
@@ -19,11 +20,7 @@ from langchain_qdrant import QdrantVectorStore
 from llm_calling import llm_calling
 from langgraph.types import Command, interrupt
 
-RFX_TYPE_LABELS = {
-    "RFP": "Request for Proposal",
-    "RFQ": "Request for Quotation",
-    "RFI": "Request for Information"
-}
+RFX_TYPE_LABELS = oc.RFX_TYPE_LABELS
 
 st.set_page_config(page_title="RFx AI Builder Assistant", layout="centered")
 st.title("RFx AI Builder Assistant")
@@ -33,25 +30,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 if "conversation_state" not in st.session_state:
-    st.session_state.conversation_state = {
-        "step": 0,
-        "user_input": "",
-        "rfx_type": None,
-        "uploaded_text": None,
-        "output_message": "",
-        "logs": [],
-        "manual_selected": False,
-        "un_retriever": None,
-        "us_retriever": None,
-        "add_txt":"",
-        "user_filename":"",
-        "introduction":"",
-        "response":"",
-        "schedule":"",
-        "scope":"",
-        "thread": None,
-        "section":""
-    }
+    st.session_state.conversation_state = oc.initialize_state()
 
 # Show chat history
 for msg in st.session_state.chat_history:
@@ -60,28 +39,15 @@ for msg in st.session_state.chat_history:
 # Step 0: Greet
 if st.session_state.conversation_state["step"] == 0:
     print("prerit 0")
-    embeddings = llm_calling(embedding_model="llama3.2:latest").call_embed_model()
-
-    ## Universal Retrieval
-    type_of_retrieval = "dense" #@param ["dense", "sparse", "hybrid"]
-    collection_name = f"""jti_rfp_{type_of_retrieval}"""
-    path = f"""./tmp/langchain_qdrant_{type_of_retrieval}"""
-    my_file = Path(path+f"""/collection/{collection_name}/storage.sqlite""")
-    #directory = "./Input_Files"
-
-    if my_file.is_file():
-        print("DB Exists")
-        retriever_input = universal_retrieval(collection_name=collection_name,embeddings=embeddings,path=path).load_existing_vdb_collection()
-    else:
-        print("DB does not exist")
-
-    ## Universal Retrieval Ends
+    
+    retriever_input = oc.load_universal_retrieval()
 
     welcome = "Hi! I’m your RFx assistant. How can I help you today?"
     st.chat_message("assistant").write(welcome)
     st.session_state.chat_history.append({"role": "assistant", "content": welcome})
     st.session_state.conversation_state["step"] = 1
     st.session_state.conversation_state["un_retriever"] = retriever_input
+
 
 # Step 1: Wait for user RFx input
 if st.session_state.conversation_state["step"] == 1:
@@ -146,6 +112,7 @@ if st.session_state.conversation_state["step"] == 2:
         st.session_state.conversation_state["user_input"] = user_input
         st.rerun()
 
+
 if st.session_state.conversation_state["step"] == 4:
     user_input = st.session_state.conversation_state["user_input"]
     rfx_type = rag_classifier().normalize_rfx_type(value=user_input)
@@ -163,9 +130,9 @@ if st.session_state.conversation_state["step"] == 3:
     # st.session_state.chat_history.append({"role": "assistant", "content": msg})
     
     with st.spinner("Classifying the document. Please Wait..."):
-        time.sleep(3)
-        result = {"rfx_type": "RFP"}
-        #result = classify_rfx(text=state.get("uploaded_text", ""),model_name="qwen2.5:7b").classify_rfx_solve()
+        # time.sleep(3)
+        # result = {"rfx_type": "RFP"}
+        result = classify_rfx(text=state.get("uploaded_text", ""),model_name="mistral:latest").classify_rfx_solve()
         
     
     state["rfx_type"] = result.get("rfx_type")
@@ -196,19 +163,7 @@ if st.session_state.conversation_state["step"] == 5:
             content = st.session_state.conversation_state["uploaded_text"]
             file_name = st.session_state.conversation_state["user_filename"]
             
-            type_of_retrieval = "dense" #@param ["dense", "sparse", "hybrid"]
-            collection_name = file_name
-            path = f"""./tmp/langchain_qdrant_user_{type_of_retrieval}"""
-            my_file = Path(path+f"""/collection/{collection_name}/storage.sqlite""")
-
-            embeddings = llm_calling(embedding_model="llama3.2:latest").call_embed_model()
-
-            if my_file.is_file():
-                print("DB Exists")
-                retriever_user = universal_retrieval(collection_name=collection_name,embeddings=embeddings,path=path).load_existing_vdb_collection()
-            else:
-                print("DB does not exist")
-                retriever_user = user_retriever(collection_name=collection_name,embeddings=embeddings,path=path,doc_input=content,type_of_retrieval=type_of_retrieval).create_new_vdb()
+            retriever_user = oc.load_user_retrieval(file_name=file_name,content=content)
 
             st.session_state.conversation_state["us_retriever"] = retriever_user
         st.session_state.conversation_state["step"] = 6
@@ -227,7 +182,7 @@ if st.session_state.conversation_state["step"] == 6:
     retriever_user = st.session_state.conversation_state["us_retriever"]
     add_txt = st.session_state.conversation_state["add_txt"]
     
-    question = add_txt+"Create an Intoduction section for the RFP document, giving a brief overview on JTI (Japan Tobacco International)."
+    question = add_txt + intro.format(section=section)
     
     app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
 
@@ -236,14 +191,7 @@ if st.session_state.conversation_state["step"] == 6:
     }
     thread = {"configurable": {"thread_id": "1"}}
     with st.spinner("Generating the Introduction section. Please Wait..."):
-        for output in app.stream(inputs,thread):
-            for key, value in output.items():
-                # Node
-                #print("prerit")
-                pprint(f"Node '{key}':")
-                # Optional: print full state at each node
-                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-            #pprint("\n---\n")
+        key,value = oc.generate_without_interrupt(inputs, thread, app)
     
     if key == '__interrupt__':
         
@@ -272,13 +220,8 @@ if st.session_state.conversation_state["step"] == 7:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
-                for key, value in output.items():
-                    # Node
-                    pprint(f"Node '{key}':")
-                    # Optional: print full state at each node
-                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-                pprint("\n---\n")
+            value = oc.generate_with_interrupt(user_input=user_input, app=app, thread=thread)
+
 
         st.session_state.conversation_state['introduction']=value["generation"]#{"A":value["generation"]}
         st.session_state.conversation_state["step"] = 8
@@ -299,10 +242,7 @@ if st.session_state.conversation_state["step"] == 8:
     retriever_user = st.session_state.conversation_state["us_retriever"]
     add_txt = st.session_state.conversation_state["add_txt"]
     
-    question = add_txt+f"""Create a {section} section for the RFP document, giving a bried overview of how the responses should be sent to RFP. Please include the following details:
-    1. Last date of subsmission.
-    2. Email IDs of the recipients.
-    3. Submission should be done by email not exceeding 20MB."""
+    question = add_txt + pop_response.format(section=section)
     
     app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
 
@@ -311,14 +251,7 @@ if st.session_state.conversation_state["step"] == 8:
     }
     thread = {"configurable": {"thread_id": "1"}}
     with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-        for output in app.stream(inputs,thread):
-            for key, value in output.items():
-                # Node
-                #print("prerit")
-                pprint(f"Node '{key}':")
-                # Optional: print full state at each node
-                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-            #pprint("\n---\n")
+        key,value = oc.generate_without_interrupt(inputs, thread, app)
     
     if key == '__interrupt__':
         
@@ -346,14 +279,10 @@ if st.session_state.conversation_state["step"] == 9:
     if user_input is not None:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
         with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
-                for key, value in output.items():
-                    # Node
-                    pprint(f"Node '{key}':")
-                    # Optional: print full state at each node
-                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-                pprint("\n---\n")
+            value = oc.generate_with_interrupt(user_input=user_input, app=app, thread=thread)
+            
 
         st.session_state.conversation_state['response']=value["generation"]#{"A":value["generation"]}
         st.session_state.conversation_state["step"] = 10
@@ -374,14 +303,7 @@ if st.session_state.conversation_state["step"] == 10:
     retriever_user = st.session_state.conversation_state["us_retriever"]
     add_txt = st.session_state.conversation_state["add_txt"]
     
-    question = add_txt+f"""Create a {section} section for the RFP document, giving a bried overview of what will be the schedule. Please include dates for the following details:
-    1. Distribution of RFP.
-    2. Intent to participate email.
-    3. Submission of clarification questions by email only.
-    4. Distribution of answers to clarification questions.
-    6. Receipt of RFP responses.
-    7. Submission of samples/presentations (if required).
-    8. Selection Decision."""
+    question = add_txt+ pop_schedule.format(section=section)
     
     app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
 
@@ -390,14 +312,7 @@ if st.session_state.conversation_state["step"] == 10:
     }
     thread = {"configurable": {"thread_id": "1"}}
     with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-        for output in app.stream(inputs,thread):
-            for key, value in output.items():
-                # Node
-                #print("prerit")
-                pprint(f"Node '{key}':")
-                # Optional: print full state at each node
-                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-            #pprint("\n---\n")
+        key,value = oc.generate_without_interrupt(inputs, thread, app)
     
     if key == '__interrupt__':
         
@@ -426,14 +341,10 @@ if st.session_state.conversation_state["step"] == 11:
     if user_input is not None:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
         with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
-                for key, value in output.items():
-                    # Node
-                    pprint(f"Node '{key}':")
-                    # Optional: print full state at each node
-                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-                pprint("\n---\n")
+            value = oc.generate_with_interrupt(user_input=user_input, app=app, thread=thread)
+            
 
         st.session_state.conversation_state['schedule']=value["generation"]#{"A":value["generation"]}
         st.session_state.conversation_state["step"] = 12
@@ -453,7 +364,7 @@ if st.session_state.conversation_state["step"] == 12:
     retriever_user = st.session_state.conversation_state["us_retriever"]
     add_txt = st.session_state.conversation_state["add_txt"]
     
-    question = add_txt+f"""Create a {section} section for the RFP document, giving a bried overview of what will be the objective and scope of the project will be."""
+    question = add_txt + scope.format(section=section)
     
     app = brief_intake(un_retriever=retriever_input,us_retriever=retriever_user,model_name="qwen2.5:7b").run_brief_intake()
 
@@ -461,16 +372,10 @@ if st.session_state.conversation_state["step"] == 12:
     "question": question
     }
     thread = {"configurable": {"thread_id": "1"}}
-    with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-        for output in app.stream(inputs,thread):
-            for key, value in output.items():
-                # Node
-                #print("prerit")
-                pprint(f"Node '{key}':")
-                # Optional: print full state at each node
-                # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-            #pprint("\n---\n")
     
+    with st.spinner(f"""Generating the {section} section. Please Wait..."""):
+        key,value = oc.generate_without_interrupt(inputs, thread, app)
+        
     if key == '__interrupt__':
         
         msg = f"""Don't have enough information on {section} section. Please provide more details."""
@@ -498,14 +403,9 @@ if st.session_state.conversation_state["step"] == 13:
     if user_input is not None:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
+
         with st.spinner(f"""Generating the {section} section. Please Wait..."""):
-            for output in app.stream(Command(resume=user_input),thread, stream_mode="updates"):
-                for key, value in output.items():
-                    # Node
-                    pprint(f"Node '{key}':")
-                    # Optional: print full state at each node
-                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
-                pprint("\n---\n")
+            value = oc.generate_with_interrupt(user_input=user_input, app=app, thread=thread)
 
         st.session_state.conversation_state['scope']=value["generation"]#{"A":value["generation"]}
         st.session_state.conversation_state["step"] = 14
@@ -520,6 +420,9 @@ if st.session_state.conversation_state["step"] == 14:
         "C": {"C.1": st.session_state.conversation_state['scope']}
     }
 
-    build_doc_from_json(data_json=final_doc)
-    st.session_state.conversation_state["step"] = 1
+    output_path = build_doc_from_json(data_json=final_doc)
+    
+    with open(output_path, "rb") as file:
+        if st.download_button("📄 Download RFx Draft", file, file_name="rfx_draft.docx"):
+            st.session_state.conversation_state["step"] = 1
     st.rerun()
