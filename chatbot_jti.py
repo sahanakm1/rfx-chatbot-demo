@@ -115,8 +115,32 @@ if st.session_state.conversation_state["step"] == 2:
 
 if st.session_state.conversation_state["step"] == 4:
     user_input = st.session_state.conversation_state["user_input"]
-    rfx_type = rag_classifier().normalize_rfx_type(value=user_input)
-    st.session_state.conversation_state["step"] = 6
+    state = st.session_state.conversation_state
+
+    with st.spinner("Classifying Your Request. Please Wait..."):
+        result = rag_classifier(chat_context=user_input).classify_with_rag()
+
+    print(result)
+    state["rfx_type"] = result
+    rfx_type = result
+    full_label = RFX_TYPE_LABELS.get(rfx_type, "")
+
+    msg = f"This looks like a **{rfx_type} ({full_label})**. Do you want to proceed?"
+    st.chat_message("assistant").write(msg)
+    st.session_state.chat_history.append({"role": "assistant", "content": msg})
+
+    st.session_state.conversation_state["step"] = 15
+
+if st.session_state.conversation_state["step"] == 15:
+
+    user_input = st.chat_input("Please type 'yes' to proceed or 'no' to change the RFx type.")
+    if user_input is not None: #and user_input.strip().lower() in ["yes","yeah","yep"]:
+        st.chat_message("user").write(user_input)
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+
+        print("prerit 15")
+        st.session_state.conversation_state["step"] = 6
+        st.rerun()
 
 
 
