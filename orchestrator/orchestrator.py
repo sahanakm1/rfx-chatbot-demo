@@ -96,6 +96,11 @@ def process_user_response_to_question(state, user_response: str):
         print("------1")
         print(state)
 
+        # TODO: here must go the answer from the model to the next section
+        #
+        #
+
+        # if the model do nos has an answer then generate question to the user  TODO: the following must go in a condition 
         question = generate_question_for_section(state["brief"][section][sub])
         state["pending_question"] = {
             "section": section,
