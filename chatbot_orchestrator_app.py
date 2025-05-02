@@ -16,7 +16,7 @@ state = st.session_state.conversation_state
 
 # Show chat history
 for msg in st.session_state.chat_history:
-    st.chat_message(msg["role"]).write(msg["content"])
+    st.chat_message(msg["role"]).markdown(msg["content"], unsafe_allow_html=True)
 
 def display_logs(logs, log_placeholder):
     if logs and log_placeholder:
@@ -31,13 +31,23 @@ log_placeholder = None
 if state["step"] >= 2:
     with st.sidebar:
         st.markdown("## 📄 Document Upload (Optional)")
-        uploaded_file = st.file_uploader("Upload a supporting RFx Document", type=["pdf", "docx", "txt"])
-        if uploaded_file:
-            content = uploaded_file.read().decode("utf-8", errors="ignore")
-            state["uploaded_text"] = content
-            doc_msg = f"Document '{uploaded_file.name}' uploaded."
-            if doc_msg not in state["logs"]:
-                state["logs"].append(doc_msg)
+        uploaded_files = st.file_uploader(
+            "Upload supporting RFx Documents (Brieft, meeting minutes, etc)", 
+            type=["pdf", "docx", "txt"], 
+            accept_multiple_files=True
+        )
+
+        if uploaded_files:
+            state["uploaded_texts"] = []  # puedes usar esto como lista acumulativa
+            for uploaded_file in uploaded_files:
+                content = uploaded_file.read().decode("utf-8", errors="ignore")
+                state["uploaded_texts"].append({
+                    "name": uploaded_file.name,
+                    "content": content
+                })
+                doc_msg = f"Document '{uploaded_file.name}' uploaded."
+                if doc_msg not in state["logs"]:
+                    state["logs"].append(doc_msg)
 
         st.markdown("## 🧾 RFx Information")
         if state.get("rfx_type"):
@@ -57,6 +67,7 @@ if state["step"] >= 2:
             st.session_state.chat_history = []
             st.session_state.conversation_state = initialize_state()
             st.rerun()
+
 
 
 
@@ -81,12 +92,17 @@ if state["step"] == 1:
             #st.session_state.conversation_state["step"] = 2
             #st.rerun()
         else:
+            uploadocument = 'You can upload <span style="color:green"><b>supporting RFx Documents (Brieft, meeting minutes, etc)</b></span> in the sidebar.'
+            st.chat_message("assistant").markdown(uploadocument, unsafe_allow_html=True)
+            st.session_state.chat_history.append({"role": "assistant", "content": uploadocument})
             state["user_input"] = user_input
             state["step"] = 2
             st.rerun()
 
 # Step 2: Classification
 if state["step"] == 2:
+    
+
     if st.button("Start Building RFx"):
         with st.spinner("🔎 Classifying your request..."):
             rfx_type, full_label = run_classification(state)
@@ -141,6 +157,16 @@ if state["step"] == 4 and not state.get("manual_selected"):
 if state.get("pending_question"):
     question = state["pending_question"]["question"]
     user_input = st.chat_input(question)
+
+    col1, col2 = st.columns([5, 1])  # Espacio para el botón "Skip" al lado
+    with col2:
+        if st.button("⏭️ Skip", key="skip_question"):
+            response = process_user_response_to_question(state, "_")
+            st.chat_message("assistant").write(response)
+            st.session_state.chat_history.append({"role": "assistant", "content": response})
+            #del state["pending_question"]
+            st.rerun()
+
     if user_input:
         st.chat_message("user").write(user_input)
         st.session_state.chat_history.append({"role": "user", "content": user_input})
@@ -151,7 +177,7 @@ if state.get("pending_question"):
 
 
 # Step 5: Generate and download final document
-if state["step"] == 5 and not state.get("document_generated"):
+if state["step"] == 5 and not state.get("document_generated") and not state.get("pending_question"):
     
     if st.button("📄 Generate Final Document"):
         with st.spinner("Generating Word document..."):

@@ -54,14 +54,17 @@ def run_brief(state):
     state["brief"] = brief_data
     state["missing_sections"] = missing_sections
 
+    print(missing_sections)
+
     if missing_sections:
-        next_section = missing_sections[0]
-        question = generate_question_for_section(next_section)
+        section, sub = missing_sections[0]
+        question = generate_question_for_section(brief_data[section][sub])
         state["pending_question"] = {
-            "section": next_section,
+            "section": section,
+            "sub": sub,
             "question": question
         }
-        return f"I need more information about **{next_section}**: {question}"
+        return f"{question}"
 
     return "Initial brief has been generated successfully."
 
@@ -70,25 +73,37 @@ def process_user_response_to_question(state, user_response: str):
     Stores the user's answer to a pending question and updates the brief.
     Then checks if more sections are missing and prepares the next question.
     """
+    print(state)
+    print(user_response)
+
     pending = state.get("pending_question")
     if not pending:
         return "No pending question to process."
 
     section = pending["section"]
-    state["brief"] = update_brief_with_user_response(state["brief"], section, user_response)
+    sub = pending["sub"]
+    state["brief"] = update_brief_with_user_response(state["brief"], section, sub, user_response)
     
     # Remove the answered section from the missing list
-    state["missing_sections"] = [s for s in state["missing_sections"] if s != section]
+    state["missing_sections"] = [s for s in state["missing_sections"] if s != (section, sub)]
     state["pending_question"] = None
 
     if state["missing_sections"]:
-        next_section = state["missing_sections"][0]
-        question = generate_question_for_section(next_section)
+        section, sub = state["missing_sections"][0]
+        print("------1")
+        print(section, sub)
+
+        print("------1")
+        print(state)
+
+        question = generate_question_for_section(state["brief"][section][sub])
         state["pending_question"] = {
-            "section": next_section,
+            "section": section,
+            "sub": sub,
             "question": question
         }
-        return f"Thanks! Now, about **{next_section}**: {question}"
+        #return f"Thanks! Now, about **{next_section}**: {question}"
+        return f"{question}"
 
     return "Thank you. The brief is now complete."
 
