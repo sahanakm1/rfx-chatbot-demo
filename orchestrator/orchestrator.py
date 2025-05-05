@@ -3,6 +3,7 @@ from agents.chat_agent import generate_question_for_section
 from agents.classification_agent import classify_rfx
 from agents.draft_generator import build_doc_from_json
 
+
 RFX_TYPE_LABELS = {
     "RFP": "Request for Proposal",
     "RFQ": "Request for Quotation",
@@ -59,11 +60,14 @@ def run_classification(state):
 
 
 def run_brief(state):
+    def dual_logger(msg):
+        print(msg)  # Log to console (for dev visibility)
+
     brief_data, missing_sections, disclaimer_msg = run_brief_intake(
         rfx_type=state.get("rfx_type"),
         user_input=state.get("user_input", ""),
         uploaded_texts=state.get("uploaded_texts", []),
-        log_callback=lambda msg: state["logs"].append(msg)
+        log_callback=dual_logger
     )
 
     state["brief"] = brief_data
@@ -81,6 +85,7 @@ def run_brief(state):
 
     return brief_data, missing_sections, disclaimer_msg
 
+
 def process_user_response_to_question(state, user_response: str):
     pending = state.get("pending_question")
     if not pending:
@@ -88,7 +93,7 @@ def process_user_response_to_question(state, user_response: str):
 
     section = pending["section"]
     sub = pending["sub"]
-    state["brief"] = update_brief_with_user_response(state["brief"], section, sub, user_response)
+    response = update_brief_with_user_response(state, user_response)
 
     state["missing_sections"] = [s for s in state["missing_sections"] if s != (section, sub)]
     state["pending_question"] = None

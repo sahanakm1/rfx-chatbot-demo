@@ -1,15 +1,35 @@
+# Core
 streamlit
-langchain
-python-docx
-tqdm
-pydantic
-python-dotenv
-transformers 
-torch
+
+# LangChain ecosystem
+langchain==0.3.24
+langchain-community
+langchain-core>=0.1.45
+langchain-ollama>=0.1.0
+langchain-qdrant
+langgraph
+
+# Document parsing
 python-docx
 pypdf
-langgraph
-langchain-community 
-langchain-core 
-langchain_ollama
-langchain-qdrant
+
+# Vector store
+qdrant-client
+
+# Text processing
+tiktoken
+langchain-text-splitters
+
+# LLMs
+transformers
+torch
+
+# Environment & validation
+pydantic>=2.7.4
+python-dotenv
+
+# Utils
+tqdm
+PyYAML
+requests
+SQLAlchemy
