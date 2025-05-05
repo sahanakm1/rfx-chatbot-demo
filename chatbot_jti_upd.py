@@ -207,14 +207,14 @@ if state["step"] == 16:
             "content": f"User selected {selected}. {msg}"
         })
     
-    content = state["uploaded_text"]
-    file_name = state["user_filename"]
+        content = state["uploaded_text"]
+        file_name = state["user_filename"]
 
-    if content is not None:
-        retriever_user = oc.load_user_retrieval(file_name=file_name,content=content)
-        state["us_retriever"] = retriever_user
-        state["step"] = 6
-        st.rerun()
+        if content is not None:
+            retriever_user = oc.load_user_retrieval(file_name=file_name,content=content)
+            state["us_retriever"] = retriever_user
+            state["step"] = 6
+            st.rerun()
 
 
 if state["step"] == 6:
@@ -763,4 +763,4 @@ if st.session_state.conversation_state["step"] == 21:
     
 
 
-    ##Created by Prerit Jain
+#    ##Created by Prerit Jain
