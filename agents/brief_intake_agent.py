@@ -1,3 +1,4 @@
+import hashlib
 import time
 from typing import List, Dict, Tuple
 from langchain_core.documents import Document
@@ -14,7 +15,28 @@ retrieval_context = {
     "qa_chain": None
 }
 
-def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[str, str]] = None, log_callback=None) -> Tuple[Dict, List[Tuple[str, str]], str]:
+VECTOR_STORE_CACHE = {}  # dict: {filename: Qdrant instance}
+
+def get_or_create_vectordb(docs, embeddings, doc_name: str):
+
+    doc_name = hashlib.md5(doc_name.encode("utf-8")).hexdigest()[:8]
+    print(doc_name)
+
+    if doc_name in VECTOR_STORE_CACHE:
+        return VECTOR_STORE_CACHE[doc_name]
+    
+    vectordb = Qdrant.from_documents(
+        docs,
+        embedding=embeddings,
+        path="./qdrant_storage",
+        collection_name=f"collection_{doc_name.replace('.', '_')}"
+    )
+
+    VECTOR_STORE_CACHE[doc_name] = vectordb
+    return vectordb
+
+
+def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[str, str]] = None, log_callback=None, doc_name="TEMP") -> Tuple[Dict, List[Tuple[str, str]], str]:
     if log_callback is None:
         log_callback = print
 
@@ -43,8 +65,9 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
 
             #embeddings = OllamaEmbeddings(model="nomic-embed-text")
             embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-            
-            vectordb = Qdrant.from_documents(docs, embedding=embeddings, location=":memory:", collection_name="brief_temp")
+
+            vectordb = get_or_create_vectordb(docs, embeddings, doc_name)
+
             retriever = vectordb.as_retriever()
             retriever.search_kwargs["k"] = 2
 
@@ -115,7 +138,7 @@ def try_auto_answer(state: Dict) -> str:
     if retrieval_context["qa_chain"]:
         try:
             answer = retrieval_context["qa_chain"].invoke({"query": f"""
-                                                                You are a procurement analyst expert in preparing RFx documents.
+                                                                You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
 
                                                                 Your task is to answer the following question using only the content retrieved from the provided documents.
 
@@ -125,6 +148,9 @@ def try_auto_answer(state: Dict) -> str:
 
                                                                 Question:
                                                                 {question}
+
+                                                                Make sure to answer 'N/A' in case there is not relevant information in the answer.
+                                                                Avoid to do references to the document, just elaborate the answer as best you can.
 
                                                             """})
             if isinstance(answer, str):

@@ -67,7 +67,8 @@ def run_brief(state):
         rfx_type=state.get("rfx_type"),
         user_input=state.get("user_input", ""),
         uploaded_texts=state.get("uploaded_texts", []),
-        log_callback=dual_logger
+        log_callback=dual_logger,
+        doc_name=state["doc_name"]
     )
 
     state["brief"] = brief_data

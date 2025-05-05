@@ -36,9 +36,11 @@ if state["step"] >= 2:
         if uploaded_files:
             filenames_seen = set()
             state["uploaded_texts"] = []
+            state["doc_name"] = "" 
             for uploaded_file in uploaded_files:
                 if uploaded_file.name not in filenames_seen:
                     filenames_seen.add(uploaded_file.name)
+                    state["doc_name"] = uploaded_file.name
 
                     if uploaded_file.name.lower().endswith(".pdf"):
                         try:
@@ -191,6 +193,7 @@ if state["step"] == 4 and not state.get("manual_selected"):
 
 # Step 5: Q&A if needed
 if state.get("pending_question"):
+    
     question = state["pending_question"]["question"]
     
     user_input = ""
@@ -206,7 +209,6 @@ if state.get("pending_question"):
         col1, col2 = st.columns([5, 1])
         with col2:
             if st.button("⏭️ Skip", key="skip_question"):
-                print("USER INPUT RECEIVED 1:", user_input)
                 response = process_user_response_to_question(state, "_")
                 st.chat_message("assistant").write(response)
                 st.session_state.chat_history.append({"role": "assistant", "content": response})
@@ -215,7 +217,6 @@ if state.get("pending_question"):
         if user_input:
             st.chat_message("user").write(user_input)
             st.session_state.chat_history.append({"role": "user", "content": user_input})
-            print("USER INPUT RECEIVED 2:", user_input)
             response = process_user_response_to_question(state, user_input)
             st.chat_message("assistant").write(response)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
@@ -223,7 +224,6 @@ if state.get("pending_question"):
     else:
         st.chat_message("user").write(answer)
         st.session_state.chat_history.append({"role": "user", "content": answer})
-        print("USER INPUT RECEIVED 3:", user_input)
         response = process_user_response_to_question(state, answer)
         st.chat_message("assistant").write(response)
         st.session_state.chat_history.append({"role": "assistant", "content": response})
