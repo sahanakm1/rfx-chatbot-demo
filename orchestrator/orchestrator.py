@@ -28,12 +28,15 @@ def initialize_state():
         "us_retriever": None,
         "add_txt":"",
         "user_filename":"",
-        "introduction":"",
-        "response":"",
-        "schedule":"",
-        "scope":"",
+        "a.1":"",
+        "a.2":"",
+        "b.1":"",
+        "b.2":"",
+        "c.1":"",
+        "c.2":"",
         "thread": None,
-        "section":""
+        "section":"",
+        "question":""
     }
 
 

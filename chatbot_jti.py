@@ -45,8 +45,9 @@ if st.session_state.conversation_state["step"] == 0:
     welcome = "Hi! I’m your RFx assistant. How can I help you today?"
     st.chat_message("assistant").write(welcome)
     st.session_state.chat_history.append({"role": "assistant", "content": welcome})
-    st.session_state.conversation_state["step"] = 1
     st.session_state.conversation_state["un_retriever"] = retriever_input
+    st.session_state.conversation_state["step"] = 1
+    
 
 
 # Step 1: Wait for user RFx input
@@ -86,9 +87,7 @@ if st.session_state.conversation_state["step"] == 2:
     
     if uploaded_file and user_input is None:
         print("prerit")
-        # user_input = "I have uploaded a document."
-        # st.chat_message("user").write(user_input)
-        # st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
         file_name = uploaded_file.name.split(".")[0]
         file_name = file_name.replace(" ","_")
         st.session_state.conversation_state["user_filename"] = file_name
@@ -140,7 +139,7 @@ if st.session_state.conversation_state["step"] == 15:
 
         print("prerit 15")
         st.session_state.conversation_state["step"] = 6
-        st.rerun()
+        #st.rerun()
 
 
 

@@ -1,6 +1,7 @@
 drafts
 poppler-24.08.0
 __pycache__
+__pycache__
 reqs
 .venv
 *.pyc

@@ -6,11 +6,9 @@ from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 TOC = {
-    "A. INTRODUCTION": ["A.1 JTI", "A.2 Our Engagement"],
-    "B. PURPOSE OF THE RFP": ["B.1 Responses", "B.2 Schedule", "B.3 Queries", "B.4 Evaluation Criteria"],
-    "C. CONTEXT": ["C.1 Project Scope and Objective", "C.2 JTI Requirements", "C.3 Proposal evaluation criteria"],
-    "D. RESPONSE": ["D.1 Executive Summary", "D.2 Additional proposal details"],
-    "E. APPENDICES": []
+    "A. INTRODUCTION": ["A.1 Goal of RFP", "A.2 About Organization"],
+    "B. PROJECT": ["B.1 Details", "B.2 Goals of Project"],
+    "C. SCOPE": ["C.1 Schedule", "C.2 Evaluation Criteria"]
 }
 
 def add_heading(doc, text, level):
