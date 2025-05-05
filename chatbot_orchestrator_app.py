@@ -99,40 +99,39 @@ if state["step"] == 2:
 
 # Step 3: Confirm type
 if state["step"] == 3:
-    if state.get("rfx_type"):
-        if "type_confirmed" not in state:
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Yes, proceed"):
-                    state["type_confirmed"] = True
-                    st.chat_message("assistant").write(f"You confirmed the request type: {state['rfx_type']}")
-                    st.session_state.chat_history.append({"role": "assistant", "content": f"You confirmed the request type: {state['rfx_type']}"})
+    if state.get("rfx_type") and not state.get("type_confirmed"):
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Yes, proceed"):
+                state["type_confirmed"] = True
+                st.chat_message("assistant").write(f"You confirmed the request type: {state['rfx_type']}")
+                st.session_state.chat_history.append({"role": "assistant", "content": f"You confirmed the request type: {state['rfx_type']}"})
 
-                    with st.spinner("Extracting information from documents...") if state.get("uploaded_texts") else st.empty():
-                        brief_data, missing_sections, disclaimer = run_brief(state)
+                with st.spinner("Extracting information from documents...") if state.get("uploaded_texts") else st.empty():
+                    brief_data, missing_sections, disclaimer = run_brief(state)
 
-                    state["brief_data"] = brief_data
-                    state["missing_sections"] = missing_sections
-                    state["disclaimer"] = disclaimer
+                state["brief_data"] = brief_data
+                state["missing_sections"] = missing_sections
+                state["disclaimer"] = disclaimer
 
-                    if disclaimer:
-                        state["disclaimer_shown"] = True
-                        st.chat_message("assistant").write(disclaimer)
-                        st.session_state.chat_history.append({"role": "assistant", "content": disclaimer})
+                if disclaimer:
+                    state["disclaimer_shown"] = True
+                    st.chat_message("assistant").write(disclaimer)
+                    st.session_state.chat_history.append({"role": "assistant", "content": disclaimer})
 
-                    if missing_sections:
-                        section, sub = missing_sections[0]
-                        question = brief_data[section][sub]["question"]
-                        state["pending_question"] = {"section": section, "sub": sub, "question": question}
-                        st.chat_message("assistant").write(question)
-                        st.session_state.chat_history.append({"role": "assistant", "content": question})
+                if missing_sections:
+                    section, sub = missing_sections[0]
+                    question = brief_data[section][sub]["question"]
+                    state["pending_question"] = {"section": section, "sub": sub, "question": question}
+                    st.chat_message("assistant").write(question)
+                    st.session_state.chat_history.append({"role": "assistant", "content": question})
 
-                    state["step"] = 5
-                    st.rerun()
+                state["step"] = 5
+                st.rerun()
 
-            with col2:
-                if st.button("❌ No, change type"):
-                    state["step"] = 4
+        with col2:
+            if st.button("❌ No, change type"):
+                state["step"] = 4
 
 # Step 4: Manual selection
 if state["step"] == 4 and not state.get("manual_selected"):
