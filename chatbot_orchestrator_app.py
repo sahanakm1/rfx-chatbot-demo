@@ -1,6 +1,10 @@
 import streamlit as st
 import pdfplumber
 from orchestrator.orchestrator import initialize_state, run_classification, run_brief, process_user_response_to_question
+from agents.brief_intake_agent import try_auto_answer
+
+import warnings
+warnings.filterwarnings("ignore", message="CropBox missing from /Page, defaulting to MediaBox")
 
 st.set_page_config(page_title="RFx AI Builder Assistant", layout="centered")
 st.title("RFx AI Builder Assistant")
@@ -188,23 +192,44 @@ if state["step"] == 4 and not state.get("manual_selected"):
 # Step 5: Q&A if needed
 if state.get("pending_question"):
     question = state["pending_question"]["question"]
-    user_input = st.chat_input(question)
+    
+    user_input = ""
+    answer = "N/A"
+    if state.get("uploaded_texts",[]):
+        with st.spinner("Generating section content..." + question):
+            answer = try_auto_answer(state)
+    print(answer)
+    if answer == "N/A":
+        # if the retrieval does not know the answe then ask the user for it
+        user_input = st.chat_input(question)
 
-    col1, col2 = st.columns([5, 1])
-    with col2:
-        if st.button("⏭️ Skip", key="skip_question"):
-            response = process_user_response_to_question(state, "_")
+        col1, col2 = st.columns([5, 1])
+        with col2:
+            if st.button("⏭️ Skip", key="skip_question"):
+                print("USER INPUT RECEIVED 1:", user_input)
+                response = process_user_response_to_question(state, "_")
+                st.chat_message("assistant").write(response)
+                st.session_state.chat_history.append({"role": "assistant", "content": response})
+                st.rerun()
+
+        if user_input:
+            st.chat_message("user").write(user_input)
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
+            print("USER INPUT RECEIVED 2:", user_input)
+            response = process_user_response_to_question(state, user_input)
             st.chat_message("assistant").write(response)
             st.session_state.chat_history.append({"role": "assistant", "content": response})
             st.rerun()
-
-    if user_input:
-        st.chat_message("user").write(user_input)
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        response = process_user_response_to_question(state, user_input)
+    else:
+        st.chat_message("user").write(answer)
+        st.session_state.chat_history.append({"role": "user", "content": answer})
+        print("USER INPUT RECEIVED 3:", user_input)
+        response = process_user_response_to_question(state, answer)
         st.chat_message("assistant").write(response)
         st.session_state.chat_history.append({"role": "assistant", "content": response})
         st.rerun()
+
+    
 
 # Step 5: Generate final document
 if state["step"] == 5 and not state.get("document_generated") and not state.get("pending_question"):

@@ -25,10 +25,12 @@ def classify_with_rag(vector_db, chat_context: str = "", model_name: str = "mist
     retrieved_docs = vector_db.similarity_search("What type of RFx is this document?", k=5)
     context = "\n\n".join(doc.page_content.strip() for doc in retrieved_docs if doc.page_content.strip())
 
+    """
     # Debug: print the chunks being used
     print("\n[DEBUG] Top retrieved chunks:")
     for i, doc in enumerate(retrieved_docs):
         print(f"[Chunk {i+1}] {doc.page_content[:300]}...\n")
+    """
 
     # Construct prompt: exclude chat_context when doc is available
     messages = [
