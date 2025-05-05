@@ -66,3 +66,16 @@ class vector_store:
             vector_name="dense",
             sparse_vector_name="sparse",
         )
+    
+
+from functools import lru_cache
+from agents.llm_calling import llm_calling
+
+@lru_cache(maxsize=1)
+def get_cached_vector_store(collection_name="rfx_classification", path="./qdrant_store"):
+    print("[INFO] Using cached Qdrant vector store")
+    llm = llm_calling(model_name="mistral")  # Or make this dynamic if needed
+    embed_model = llm.call_embed_model()
+
+    store = vector_store(collection_name=collection_name, embeddings=embed_model, path=path)
+    return store.vector_qdrant_dense(create_if_not_exists=False, force_recreate=False)

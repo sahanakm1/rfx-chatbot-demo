@@ -1,104 +1,101 @@
 from typing import Dict, Tuple, List
-from agents.llm_calling import llm_calling
-from agents.retriever_router import create_router
-from agents.retrieval_grader import create_retrieval_grader
-from agents.question_rewriter import question_rewriter_creator
-from langchain.prompts.prompt import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+import time
+from langchain_community.vectorstores import Qdrant
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.llms import Ollama
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains import RetrievalQA
 from langchain_core.documents import Document
-from prompts.qna_template import sections_create
-from agents.vector_store import vector_store
+from prompts.brief_structure import REQUIRED_STRUCTURE
 
-# Define required structure
-REQUIRED_STRUCTURE = {
-    "A": ["A.1", "A.2"],
-    "B": ["B.1", "B.2", "B.3", "B.4"],
-    "C": ["C.1", "C.2", "C.3"],
-    "D": ["D.1", "D.2"],
-    "E": []
-}
+def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[str, str]] = None, log_callback=None) -> Tuple[Dict, List[Tuple[str, str]], str]:
+    if log_callback: log_callback("[STEP] Running brief intake agent")
+    start_total = time.time()
 
-def run_brief_intake(rfx_type: str, user_input: str, uploaded_text=None,
-                      retriever_input=None, retriever_user=None) -> Tuple[Dict, List[str]]:
-    """
-    Builds a nested brief structure with upgraded retrieval + grading.
-    """
     brief = {}
     missing_sections = []
+    disclaimer_msg = None
 
-    llm = llm_calling().call_llm()
-    router = create_router(llm)
-    grader = create_retrieval_grader(llm)
-    rewriter = question_rewriter_creator(llm)
+    qa_chain = None
+    if uploaded_texts:
+        try:
+            all_text = "\n\n".join([doc["content"] for doc in uploaded_texts])
+            if log_callback: log_callback("[STEP] Splitting and preparing text chunks")
+            start = time.time()
+            splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=500, chunk_overlap=50)
+            chunks = splitter.split_text(all_text)
+            if log_callback: log_callback(f"[TIMING] Text splitting took {round((time.time() - start)/60, 2)} min")
 
-    rag_prompt = PromptTemplate(template=sections_create, input_variables=["question", "context"])
-    rag_chain = rag_prompt | llm | StrOutputParser()
+            if log_callback: log_callback("[STEP] Creating documents and embeddings")
+            start = time.time()
+            docs = [Document(page_content=c) for c in chunks]
+            embeddings = OllamaEmbeddings(model="mistral")
+            vectordb = Qdrant.from_documents(docs, embedding=embeddings, location=":memory:", collection_name="brief_temp")
+            retriever = vectordb.as_retriever()
+            if log_callback: log_callback(f"[TIMING] Embedding + vectorstore creation took {round((time.time() - start)/60, 2)} min")
 
-    # Normalize uploaded_text
-    if isinstance(uploaded_text, list):
-        uploaded_text = "\n\n".join([d.page_content for d in uploaded_text])
-    elif uploaded_text is None:
-        uploaded_text = ""
+            if log_callback: log_callback("[STEP] Warming up LLM")
+            start = time.time()
+            ollama_model = Ollama(model="mistral")
+            qa_chain = RetrievalQA.from_chain_type(llm=ollama_model, retriever=retriever)
+            if log_callback: log_callback(f"[TIMING] LLM warm-up took {round((time.time() - start)/60, 2)} min")
 
-    for section, subkeys in REQUIRED_STRUCTURE.items():
-        if uploaded_text.strip():
-            if subkeys:
-                brief[section] = {sub: None for sub in subkeys}
-            else:
-                brief[section] = None
-        else:
-            if subkeys:
-                missing_sections.extend(subkeys)
-                brief[section] = {sub: None for sub in subkeys}
-            else:
-                missing_sections.append(section)
-                brief[section] = None
-
-    return brief, missing_sections
-
-def generate_section_from_retrieval(question: str, retriever_input, retriever_user) -> str:
-    """
-    Rewrites question, routes to correct retriever, filters irrelevant docs, then generates response.
-    """
-    llm = llm_calling().call_llm()
-    router = create_router(llm)
-    grader = create_retrieval_grader(llm)
-    rewriter = question_rewriter_creator(llm)
-
-    # Rewrite the question
-    rewritten_question = rewriter.invoke({"question": question})
-
-    # Route
-    route = router.invoke({"question": rewritten_question})
-    if route.datasource == "retrieve_universal":
-        docs = retriever_input.invoke(rewritten_question)
+        except Exception as e:
+            if log_callback: log_callback(f"[WARNING] Document processing failed, skipping RAG: {e}")
+            qa_chain = None
     else:
-        docs = retriever_user.invoke(rewritten_question)
+        if log_callback: log_callback("[INFO] No uploaded documents. Skipping RAG.")
+        disclaimer_msg = "Since no supporting documents were provided, I’ll guide you through a few questions to help complete the brief."
 
-    # Grade
-    filtered_docs = []
-    for doc in docs:
-        score = grader.invoke({"question": rewritten_question, "document": doc.page_content})
-        if score.binary_score == "yes":
-            filtered_docs.append(doc)
+    if log_callback: log_callback("[STEP] Starting section-wise brief generation")
+    for section_key, sub_dict in REQUIRED_STRUCTURE.items():
+        brief[section_key] = {}
+        for sub_key, sub_content in sub_dict.items():
+            question = sub_content["question"]
+            title = sub_content["title"]
 
-    # Generate
-    context = "\n\n".join([doc.page_content for doc in filtered_docs])
-    rag_prompt = PromptTemplate(template=sections_create, input_variables=["question", "context"])
-    rag_chain = rag_prompt | llm | StrOutputParser()
-    response = rag_chain.invoke({"question": rewritten_question, "context": context})
-    return response
+            answer = "N/A"
+            if qa_chain:
+                prompt = f"""You are helping prepare a response to a {rfx_type}. Based on the content in the provided documents, answer the following:
 
-def update_brief_with_user_response(brief: Dict, section: str, content: str) -> Dict:
-    if section in brief:
-        brief[section] = content
-        return brief
+{question}
 
-    for top_section, subsections in REQUIRED_STRUCTURE.items():
-        if section in subsections:
-            if top_section not in brief:
-                brief[top_section] = {}
-            brief[top_section][section] = content
-            return brief
+If no answer is found, just return 'N/A'.
+"""
+                if log_callback: log_callback(f"[STEP] Processing {section_key}.{sub_key}")
+                start = time.time()
+                try:
+                    answer = qa_chain.run(prompt)
+                except Exception as e:
+                    if log_callback: log_callback(f"[WARNING] RAG failed for {section_key}.{sub_key}: {e}")
+                if log_callback: log_callback(f"[TIMING] {section_key}.{sub_key} took {round((time.time() - start)/60, 2)} min")
 
+            brief[section_key][sub_key] = {
+                "title": title,
+                "question": question,
+                "answer": answer.strip() if isinstance(answer, str) else "N/A"
+            }
+
+            if brief[section_key][sub_key]["answer"].lower() in ["", "n/a", "na"]:
+                missing_sections.append((section_key, sub_key))
+
+    # Add final geography question to the end
+    final_section = "Z"
+    final_sub = "Z.1"
+    final_question = "I see you are based in Spain. Is this the expected geography for this engagement?"
+    brief[final_section] = {
+        final_sub: {
+            "title": "Engagement Geography",
+            "question": final_question,
+            "answer": ""
+        }
+    }
+    missing_sections.append((final_section, final_sub))
+
+    if log_callback: log_callback(f"[TIMING] Total brief generation took {round((time.time() - start_total)/60, 2)} min")
+    return brief, missing_sections, disclaimer_msg
+
+def update_brief_with_user_response(brief: Dict, section: str, sub: str, content: str) -> Dict:
+    if section in brief and sub in brief[section]:
+        brief[section][sub]["answer"] = content
     return brief

@@ -27,17 +27,13 @@ def insert_toc(paragraph):
     """Insert a field code for TOC that Word will convert into a clickable TOC"""
     fldChar1 = OxmlElement('w:fldChar')
     fldChar1.set(qn('w:fldCharType'), 'begin')
-    
     instrText = OxmlElement('w:instrText')
     instrText.set(qn('xml:space'), 'preserve')
     instrText.text = 'TOC \\o "1-3" \\h \\z \\u'
-    
     fldChar2 = OxmlElement('w:fldChar')
     fldChar2.set(qn('w:fldCharType'), 'separate')
-    
     fldChar3 = OxmlElement('w:fldChar')
     fldChar3.set(qn('w:fldCharType'), 'end')
-    
     r = paragraph.add_run()
     r._r.append(fldChar1)
     r._r.append(instrText)
@@ -45,17 +41,14 @@ def insert_toc(paragraph):
     r._r.append(fldChar3)
 
 def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx"):
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
     doc = Document()
     doc.add_heading("Generated Proposal", level=0)
-
+    
     # Insert TOC Placeholder
     toc_paragraph = doc.add_paragraph()
     insert_toc(toc_paragraph)
-    doc.add_page_break()
-
+    doc.add_paragraph("")
+    
     for section_title, subsections in TOC.items():
         section_key = section_title.split(".")[0]
         add_heading(doc, section_title, level=1)
@@ -69,9 +62,12 @@ def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx")
         else:
             content = data_json.get(section_key, "(No content provided)")
             add_paragraph(doc, content)
-
+    
+    # ✅ Create output directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
     doc.save(output_path)
     print(f"Document saved as {output_path}")
     print("Open the document in Word and press F9 to update the TOC!")
-
+    
     return output_path
