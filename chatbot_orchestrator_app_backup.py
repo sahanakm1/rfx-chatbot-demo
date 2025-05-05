@@ -10,7 +10,7 @@ if "chat_history" not in st.session_state:
 
 if "conversation_state" not in st.session_state:
     st.session_state.conversation_state = initialize_state()
-
+    
 state = st.session_state.conversation_state
 
 # Show chat history
@@ -29,16 +29,16 @@ if state["step"] >= 2:
         )
 
         if uploaded_files:
-            filenames_seen = set()
             state["uploaded_texts"] = []
+            filenames_seen = set()
             for uploaded_file in uploaded_files:
+                content = uploaded_file.read().decode("utf-8", errors="ignore")
                 if uploaded_file.name not in filenames_seen:
-                    filenames_seen.add(uploaded_file.name)
-                    content = uploaded_file.read().decode("utf-8", errors="ignore")
                     state["uploaded_texts"].append({"name": uploaded_file.name, "content": content})
+                    filenames_seen.add(uploaded_file.name)
                     state["logs"].append(f"📄 Document '{uploaded_file.name}' uploaded.")
 
-        st.markdown("## 🗞️ RFx Information")
+        st.markdown("## 🧾 RFx Information")
         if state.get("rfx_type"):
             st.success(f"Request Type: {state['rfx_type']}")
         else:
@@ -49,12 +49,9 @@ if state["step"] >= 2:
             with log_placeholder:
                 st.markdown("## 📚 View log steps")
                 with st.expander("View log steps", expanded=True):
-                    shown_logs = set()
                     for log in state["logs"]:
-                        if log not in shown_logs:
-                            if not any(tag in log for tag in ["[INFO]", "[STEP]", "[TIMING]"]):
-                                st.markdown(f"- {log}")
-                            shown_logs.add(log)
+                        if not any(tag in log for tag in ["[INFO]", "[STEP]", "[TIMING]"]):
+                            st.markdown(f"- {log}")
 
         if st.button("🔁 Reset Chat"):
             st.session_state.chat_history = []
@@ -90,49 +87,36 @@ if state["step"] == 2:
     if st.button("Start Building RFx"):
         with st.spinner("🔎 Classifying your request..."):
             rfx_type, full_label = run_classification(state)
-        if f"✅ Classification complete: {rfx_type}" not in state["logs"]:
             state["logs"].append(f"✅ Classification complete: {rfx_type}")
+
         msg = f"This looks like a **{rfx_type} ({full_label})**. Do you want to proceed?"
         st.chat_message("assistant").write(msg)
         st.session_state.chat_history.append({"role": "assistant", "content": msg})
         state["step"] = 3
+        st.rerun()
 
 # Step 3: Confirm type
 if state["step"] == 3:
     if state.get("rfx_type"):
-        if "type_confirmed" not in state:
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Yes, proceed"):
-                    state["type_confirmed"] = True
-                    st.chat_message("assistant").write(f"You confirmed the request type: {state['rfx_type']}")
-                    st.session_state.chat_history.append({"role": "assistant", "content": f"You confirmed the request type: {state['rfx_type']}"})
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Yes, proceed"):
+                msg = f"You confirmed the request type: {state['rfx_type']}"
+                st.chat_message("assistant").write(msg)
+                st.session_state.chat_history.append({"role": "assistant", "content": msg})
+                state["logs"].append("📑 Brief intake agent started")
 
-                    with st.spinner("Extracting information from documents...") if state.get("uploaded_texts") else st.empty():
-                        brief_data, missing_sections, disclaimer = run_brief(state)
+                with st.status("📑 Extracting information from documents...", expanded=False):
+                    run_brief(state)
 
-                    state["brief_data"] = brief_data
-                    state["missing_sections"] = missing_sections
-                    state["disclaimer"] = disclaimer
-
-                    if disclaimer:
-                        state["disclaimer_shown"] = True
-                        st.chat_message("assistant").write(disclaimer)
-                        st.session_state.chat_history.append({"role": "assistant", "content": disclaimer})
-
-                    if missing_sections:
-                        section, sub = missing_sections[0]
-                        question = brief_data[section][sub]["question"]
-                        state["pending_question"] = {"section": section, "sub": sub, "question": question}
-                        st.chat_message("assistant").write(question)
-                        st.session_state.chat_history.append({"role": "assistant", "content": question})
-
-                    state["step"] = 5
+                if state.get("pending_question"):
                     st.rerun()
 
-            with col2:
-                if st.button("❌ No, change type"):
-                    state["step"] = 4
+                state["step"] = 5
+                st.rerun()
+        with col2:
+            if st.button("❌ No, change type"):
+                state["step"] = 4
 
 # Step 4: Manual selection
 if state["step"] == 4 and not state.get("manual_selected"):
@@ -149,26 +133,12 @@ if state["step"] == 4 and not state.get("manual_selected"):
     if selected:
         state["rfx_type"] = selected
         state["manual_selected"] = True
-        brief_data, missing_sections, disclaimer = run_brief(state)
-        msg = f"You selected {selected}. {disclaimer}" if disclaimer else f"You selected {selected}."
-        st.chat_message("assistant").write(msg)
-        st.session_state.chat_history.append({"role": "assistant", "content": msg})
-        state["brief_data"] = brief_data
-        state["missing_sections"] = missing_sections
-        state["disclaimer"] = disclaimer
-
-        if disclaimer:
-            state["disclaimer_shown"] = True
-            st.chat_message("assistant").write(disclaimer)
-            st.session_state.chat_history.append({"role": "assistant", "content": disclaimer})
-
-        if missing_sections:
-            section, sub = missing_sections[0]
-            question = brief_data[section][sub]["question"]
-            state["pending_question"] = {"section": section, "sub": sub, "question": question}
-            st.chat_message("assistant").write(question)
-            st.session_state.chat_history.append({"role": "assistant", "content": question})
-
+        msg = run_brief(state)
+        st.chat_message("assistant").write(f"You selected {selected}. {msg}")
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": f"User selected {selected}. {msg}"
+        })
         state["step"] = 5
         st.rerun()
 
