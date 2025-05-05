@@ -1,3 +1,5 @@
+# orchestrator.py
+
 from agents.brief_intake_agent import run_brief_intake, update_brief_with_user_response
 from agents.chat_agent import generate_question_for_section
 from agents.classification_agent import classify_rfx
@@ -14,20 +16,14 @@ def initialize_state():
         "step": 0,
         "user_input": "",
         "rfx_type": None,
-        "uploaded_texts": [],
+        "uploaded_text": "",
         "output_message": "",
         "logs": [],
         "manual_selected": False,
         "brief": {},
         "pending_question": None,
-        "missing_sections": [],
-        "rfx_confirmed": False,
-        "brief_ran": False,
-        "document_generated": False,
-        "document_path": ""
+        "missing_sections": []
     }
-
-import time
 
 def run_classification(state):
     logs = []
@@ -35,10 +31,9 @@ def run_classification(state):
     def log_callback(msg):
         logs.append(msg)
 
+    # 🔧 Fix: Use text from uploaded documents if available
     uploaded_texts = state.get("uploaded_texts", [])
     combined_text = "\n\n".join([doc["content"] for doc in uploaded_texts]) if uploaded_texts else ""
-
-    start_time = time.time()
 
     result = classify_rfx(
         text=combined_text,
@@ -46,29 +41,22 @@ def run_classification(state):
         log_callback=log_callback
     )
 
-    duration = round((time.time() - start_time) / 60, 2)
-    print(f"[TIMING] RAG classification took {duration} min")
-
     state["rfx_type"] = result.get("rfx_type")
-
-    # Print detailed logs to terminal only
-    for log in logs + result.get("logs", []):
-        print(log)
-
+    state["logs"] = logs + result.get("logs", [])
     return state["rfx_type"], RFX_TYPE_LABELS.get(state["rfx_type"], "")
 
 
 def run_brief(state):
-    brief_data, missing_sections, disclaimer_msg = run_brief_intake(
-        rfx_type=state.get("rfx_type"),
-        user_input=state.get("user_input", ""),
-        uploaded_texts=state.get("uploaded_texts", []),
-        log_callback=lambda msg: state["logs"].append(msg)
+    brief_data, missing_sections = run_brief_intake(
+        state.get("rfx_type"),
+        state.get("user_input", ""),
+        state.get("uploaded_text", "")
     )
 
     state["brief"] = brief_data
     state["missing_sections"] = missing_sections
-    state["disclaimer"] = disclaimer_msg
+
+    print(missing_sections)
 
     if missing_sections:
         section, sub = missing_sections[0]
@@ -78,10 +66,18 @@ def run_brief(state):
             "sub": sub,
             "question": question
         }
+        return f"{question}"
 
-    return brief_data, missing_sections, disclaimer_msg
+    return "Initial brief has been generated successfully."
 
 def process_user_response_to_question(state, user_response: str):
+    """
+    Stores the user's answer to a pending question and updates the brief.
+    Then checks if more sections are missing and prepares the next question.
+    """
+    print(state)
+    print(user_response)
+
     pending = state.get("pending_question")
     if not pending:
         return "No pending question to process."
@@ -89,29 +85,36 @@ def process_user_response_to_question(state, user_response: str):
     section = pending["section"]
     sub = pending["sub"]
     state["brief"] = update_brief_with_user_response(state["brief"], section, sub, user_response)
-
+    
+    # Remove the answered section from the missing list
     state["missing_sections"] = [s for s in state["missing_sections"] if s != (section, sub)]
     state["pending_question"] = None
 
     if state["missing_sections"]:
         section, sub = state["missing_sections"][0]
+        print("------1")
+        print(section, sub)
+
+        print("------1")
+        print(state)
+
+        # TODO: here must go the answer from the model to the next section
+        #
+        #
+
+        # if the model do nos has an answer then generate question to the user  TODO: the following must go in a condition 
         question = generate_question_for_section(state["brief"][section][sub])
         state["pending_question"] = {
             "section": section,
             "sub": sub,
             "question": question
         }
-        return question
+        #return f"Thanks! Now, about **{next_section}**: {question}"
+        return f"{question}"
 
     return "Thank you. The brief is now complete."
 
 def generate_final_document(state) -> str:
     brief = state.get("brief", {})
-    formatted_data = {
-        section_key: {
-            sub_key: qa.get("answer", "(No content provided)")
-            for sub_key, qa in sub_dict.items()
-        }
-        for section_key, sub_dict in brief.items()
-    }
-    return build_doc_from_json(formatted_data)
+    file_path = build_doc_from_json(brief)
+    return file_path
