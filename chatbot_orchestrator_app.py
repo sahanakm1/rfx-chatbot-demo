@@ -1,4 +1,5 @@
 import streamlit as st
+import pdfplumber
 from orchestrator.orchestrator import initialize_state, run_classification, run_brief, process_user_response_to_question
 
 st.set_page_config(page_title="RFx AI Builder Assistant", layout="centered")
@@ -34,7 +35,19 @@ if state["step"] >= 2:
             for uploaded_file in uploaded_files:
                 if uploaded_file.name not in filenames_seen:
                     filenames_seen.add(uploaded_file.name)
-                    content = uploaded_file.read().decode("utf-8", errors="ignore")
+
+                    if uploaded_file.name.lower().endswith(".pdf"):
+                        try:
+                            with pdfplumber.open(uploaded_file) as pdf:
+                                content = "\n\n".join(page.extract_text() or "" for page in pdf.pages)
+                        except Exception as e:
+                            content = ""
+                            state["logs"].append(f"⚠️ Could not extract text from {uploaded_file.name}: {e}")
+                    else:
+                        content = uploaded_file.read().decode("utf-8", errors="ignore")
+
+                    
+                    
                     state["uploaded_texts"].append({"name": uploaded_file.name, "content": content})
                     state["logs"].append(f"📄 Document '{uploaded_file.name}' uploaded.")
 

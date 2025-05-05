@@ -5,6 +5,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Qdrant
 from langchain.chains import RetrievalQA
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
+from langchain_huggingface import HuggingFaceEmbeddings
+
 from prompts.brief_structure import REQUIRED_STRUCTURE
 
 
@@ -32,16 +34,28 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
             log_callback("[STEP] Creating documents and embeddings")
             start = time.time()
             docs = [Document(page_content=c) for c in chunks]
-            embeddings = OllamaEmbeddings(model="mistral")
+
+            log_callback(f"[DEBUG] Number of chunks: {len(docs)}")
+            log_callback(f"[DEBUG] Sample chunk: {docs[0].page_content[:200]}...")
+
+            #embeddings = OllamaEmbeddings(model="nomic-embed-text")
+            embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+            
             vectordb = Qdrant.from_documents(docs, embedding=embeddings, location=":memory:", collection_name="brief_temp")
             retriever = vectordb.as_retriever()
-            retriever.search_kwargs["k"] = 5
+            retriever.search_kwargs["k"] = 3
+
+            results = retriever.get_relevant_documents("test query about the RFP scope")
+            log_callback(f"[DEBUG] Sample retrieval result: {results[:2]}")
+
+
             log_callback(f"[TIMING] Embedding + vectorstore creation took {round((time.time() - start)/60, 2)} min")
 
             log_callback("[STEP] Warming up LLM")
             start = time.time()
             llm = OllamaLLM(model="mistral")
-            qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+            qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, chain_type="map_reduce")
             log_callback(f"[TIMING] LLM warm-up took {round((time.time() - start)/60, 2)} min")
 
         except Exception as e:
@@ -62,14 +76,14 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
             if qa_chain:
                 prompt = f"""You are helping prepare a response to a {rfx_type}. Based on the content in the provided documents, answer the following:
 
-{question}
+                        {question}
 
-If no answer is found, just return 'N/A'.
-"""
+                        If no answer is found, just return 'N/A'.
+                        """
                 log_callback(f"[STEP] Processing {section_key}.{sub_key}")
                 start = time.time()
                 try:
-                    docs = qa_chain.retriever.get_relevant_documents(prompt)
+                    docs = qa_chain.retriever.get_relevant_documents(question)  # only question is relevant for the retrieves
                     log_callback(f"[DEBUG] Top docs for {section_key}.{sub_key}:\n{docs[:2]}")
                     answer = qa_chain.invoke({"query": prompt})
                 except Exception as e:
@@ -79,7 +93,7 @@ If no answer is found, just return 'N/A'.
             brief[section_key][sub_key] = {
                 "title": title,
                 "question": question,
-                "answer": answer.strip() if isinstance(answer, str) else "N/A"
+                "answer": answer["result"].strip() if not "N/A" in answer["result"]  else "N/A"
             }
 
             if brief[section_key][sub_key]["answer"].lower() in ["", "n/a", "na"]:
@@ -99,6 +113,7 @@ If no answer is found, just return 'N/A'.
     missing_sections.append((final_section, final_sub))
 
     log_callback(f"[TIMING] Total brief generation took {round((time.time() - start_total)/60, 2)} min")
+
     return brief, missing_sections, disclaimer_msg
 
 def update_brief_with_user_response(state, user_input: str):

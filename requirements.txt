@@ -1,5 +1,6 @@
 # Core
 streamlit
+pdfplumber
 
 # LangChain ecosystem
 langchain==0.3.24
@@ -8,6 +9,8 @@ langchain-core>=0.1.45
 langchain-ollama>=0.1.0
 langchain-qdrant
 langgraph
+sentence-transformers
+langchain-huggingface
 
 # Document parsing
 python-docx
