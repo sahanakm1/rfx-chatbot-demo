@@ -69,7 +69,7 @@ def run_brief(state):
         user_input=state.get("user_input", ""),
         uploaded_texts=state.get("uploaded_texts", []),
         log_callback=dual_logger,
-        doc_name=state["doc_name"]
+        doc_name=state.get("doc_name","name")
     )
 
     state["brief"] = brief_data
