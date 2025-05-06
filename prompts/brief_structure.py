@@ -30,7 +30,7 @@ REQUIRED_STRUCTURE = {
     "C": {
         "C.1": {
             "title": "Project Scope and Objective",
-            "question": "What is the scope and objective of the project?"
+            "question": "What specific activities, deliverables, or responsibilities should the vendor cover as part of this project?"
         },
         "C.2": {
             "title": "JTI Requirements",

@@ -25,6 +25,7 @@ def initialize_state():
         "rfx_confirmed": False,
         "brief_ran": False,
         "document_generated": False,
+        "doc_name": "Generated_Document",
         "document_path": ""
     }
 
@@ -62,7 +63,7 @@ def run_classification(state):
 def run_brief(state):
     def dual_logger(msg):
         print(msg)  # Log to console (for dev visibility)
-
+        
     brief_data, missing_sections, disclaimer_msg = run_brief_intake(
         rfx_type=state.get("rfx_type"),
         user_input=state.get("user_input", ""),
