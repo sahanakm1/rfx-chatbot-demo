@@ -4,4 +4,12 @@ __pycache__/
 *.pyc
 .DS_Store
 poppler-24.08.0
+<<<<<<< HEAD
 tmp
+=======
+*.log
+tmp
+reqs
+drafts
+qdrant_storage/
+>>>>>>> RFx_POC_Demo_Final
