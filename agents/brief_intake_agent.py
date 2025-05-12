@@ -7,6 +7,8 @@ from langchain_community.vectorstores import Qdrant
 from langchain.chains import RetrievalQA
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_huggingface import HuggingFaceEmbeddings
+from agents.vector_store import get_cached_vector_store
+from agents.llm_calling import llm_calling
 
 from prompts.brief_structure import REQUIRED_STRUCTURE
 
@@ -36,7 +38,7 @@ def get_or_create_vectordb(docs, embeddings, doc_name: str):
     return vectordb
 
 
-def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[str, str]] = None, log_callback=None, doc_name="TEMP") -> Tuple[Dict, List[Tuple[str, str]], str]:
+def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[str, str]] = None, log_callback=None, doc_name="TEMP", collection_name="") -> Tuple[Dict, List[Tuple[str, str]], str]:
     if log_callback is None:
         log_callback = print
 
@@ -50,15 +52,18 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
     qa_chain = None
     if uploaded_texts:
         try:
+            start = time.time()
+            """
             all_text = "\n\n".join([doc["content"] for doc in uploaded_texts])
             log_callback("[STEP] Splitting and preparing text chunks")
             start = time.time()
             splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(chunk_size=1000, chunk_overlap=50)
             chunks = splitter.split_text(all_text)
             log_callback(f"[TIMING] Text splitting took {round((time.time() - start)/60, 2)} min")
+            
 
             log_callback("[STEP] Creating documents and embeddings")
-            start = time.time()
+            
             docs = [Document(page_content=c) for c in chunks]
 
             log_callback(f"[DEBUG] Number of chunks: {len(docs)}")
@@ -67,6 +72,10 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
             embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
             vectordb = get_or_create_vectordb(docs, embeddings, doc_name)
+            """
+
+            embed_model = llm_calling(model_name="mistral").call_embed_model()
+            vectordb = get_cached_vector_store(collection_name=collection_name, embeddings=embed_model, ensure_exists=False)
 
             retriever = vectordb.as_retriever()
             retriever.search_kwargs["k"] = 2

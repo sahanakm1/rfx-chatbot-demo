@@ -42,6 +42,7 @@ def classify_with_rag(vector_db, chat_context: str = "", model_name: str = "mist
     start = time.time()
     response = llm.invoke(messages)
     print(f"[TIMING] RAG classification took {(time.time() - start)/60:.2f} min")
+    print(response)
     
     result = normalize_rfx_type(response.content)
     return result

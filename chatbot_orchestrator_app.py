@@ -1,6 +1,6 @@
 import streamlit as st
 import pdfplumber
-from orchestrator.orchestrator import initialize_state, run_classification, run_brief, process_user_response_to_question
+from orchestrator.orchestrator import initialize_state, run_classification, run_brief, process_user_response_to_question, ingest_uploaded_documents
 from agents.brief_intake_agent import try_auto_answer
 import base64
 
@@ -190,6 +190,9 @@ if state["step"] == 2 and st.button("Start Building RFx"):
 
 # Step 2: actual classification logic runs on next cycle
 if state["step"] == 2 and state.get("trigger_classification"):
+    with st.spinner("⚙️ Processing uploaded documents..."):
+        ingest_uploaded_documents(state)
+
     with st.spinner("🔎 Classifying your request..."):
         rfx_type, full_label = run_classification(state)
 
