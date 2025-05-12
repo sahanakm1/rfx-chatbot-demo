@@ -9,3 +9,4 @@ tmp
 reqs
 drafts
 qdrant_storage/
+storage.sqlite/
