@@ -78,7 +78,7 @@ def run_brief(state):
 
     if missing_sections:
         section, sub = missing_sections[0]
-        question = generate_question_for_section(brief_data[section][sub])
+        question = generate_question_for_section(sub)
         state["pending_question"] = {
             "section": section,
             "sub": sub,
