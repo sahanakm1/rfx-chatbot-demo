@@ -1,18 +1,9 @@
 # agents/classification_agent.py
-
-from agents.embedding_utils import split_text
-from agents.vector_store import get_cached_vector_store
-from agents.rag_classifier import classify_with_rag
 from agents.intent_classifier import classify_by_intent
-from agents.llm_calling import llm_calling
-from langchain_core.documents import Document
-import hashlib
-import time
 
-_doc_cache = {}
 
-def classify_rfx(text: str = "", user_input: str = "", model_name: str = "mistral",
-                 collection_name: str = "rfx_classification", log_callback=None) -> dict:
+def classify_rfx(user_input: str = "", collection_name: str = "", model_name: str = "mistral",
+                 uploaded_texts: list = None, log_callback=None) -> dict:
     log_msgs = []
 
     def log(msg):
@@ -22,50 +13,20 @@ def classify_rfx(text: str = "", user_input: str = "", model_name: str = "mistra
                 clean_msg = msg.replace("[INFO]", "").replace("[STEP]", "").strip()
                 log_callback(clean_msg)
 
-    if not user_input.strip() and not text.strip():
-        log("[INFO] No user input or document provided. Skipping classification.")
+    if not user_input.strip():
+        log("[INFO] No input provided for classification.")
         return {"rfx_type": "Unknown", "logs": log_msgs}
 
-    if text.strip():
-        doc_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
-        if doc_hash in _doc_cache:
-            vector_db = _doc_cache[doc_hash]
-            log("[INFO] Using cached vector DB for document")
-        else:
-            log("[INFO] Starting classification using document (RAG mode)...")
-
-            if len(text.split()) < 500:
-                chunks = [Document(page_content=text)]
-                log("[INFO] Document is short. Using full text as a single chunk.")
-            else:
-                chunks = split_text(text)[:3]
-                log("[STEP] Splitting and truncating text")
-
-            # Get embedding model
-            llm = llm_calling(model_name=model_name)
-            embed_model = llm.call_embed_model()
-
-            # Embed chunks
-            log("[STEP] Creating embeddings")
-            vectors = embed_model.embed_documents([chunk.page_content for chunk in chunks])
-
-            # Get cached Qdrant vector store (fast)
-            start = time.time()
-            vector_db = get_cached_vector_store(collection_name=collection_name)
-            log(f"[TIMING] Qdrant vector store ready in {time.time() - start:.2f}s")
-            log(f"[INFO] Connected to Qdrant collection: {collection_name}")
-
-            # Add chunks to vector DB
-            docs = [Document(page_content=chunk.page_content) for chunk in chunks]
-            log("[STEP] Adding documents to vector DB")
-            vector_db.add_documents(docs)
-
-            _doc_cache[doc_hash] = vector_db
-
-        rfx_type = classify_with_rag(vector_db, user_input, model_name=model_name)
-        return {"rfx_type": rfx_type, "logs": log_msgs}
-
+    if uploaded_texts:  # SOLO si hay documentos subidos
+        try:
+            log("[INFO] Using intent classification with document content...")
+            rfx_type = classify_by_intent("\n\n".join([doc["content"] for doc in uploaded_texts]), model_name=model_name)
+        except Exception as e:
+            log(f"[ERROR] Falló la clasificación con vector DB: {e}")
+            log("[INFO] Reintentando con clasificación por intención...")
+            rfx_type = classify_by_intent(user_input, model_name=model_name)
     else:
-        log("[INFO] No document provided. Using intent classification...")
+        log("[INFO] No documents uploaded. Using intent classification...")
         rfx_type = classify_by_intent(user_input, model_name=model_name)
-        return {"rfx_type": rfx_type, "logs": log_msgs}
+
+    return {"rfx_type": rfx_type, "logs": log_msgs}

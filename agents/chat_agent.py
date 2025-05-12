@@ -51,6 +51,32 @@ def handle_conversation(state, user_input):
     # Generate assistant reply
     return cleaned_response
 
+def stream_conversation(state, user_input):
+
+    if is_vague_input(user_input):
+        state["intent"] = "vague"
+    elif "document" in user_input.lower():
+        state["intent"] = "has_document"
+    elif any(word in user_input.lower() for word in ["pricing", "proposal", "quote", "quotation", "request", "vendor", "build", "create"]):
+        state["intent"] = "create"
+
+    history = state.get("chat_history", [])
+    messages = [SystemMessage(content=load_system_prompt())]
+
+    recent_history = history[-MAX_HISTORY:]
+    for msg in recent_history:
+        role = msg.get("role", "assistant")
+        content = msg.get("content", "")
+        if role == "user":
+            messages.append(HumanMessage(content=content))
+        else:
+            messages.append(AIMessage(content=content))
+
+    messages.append(HumanMessage(content=user_input))
+
+    return llm.stream(messages)  # returns a generator
+
+
 def generate_question_for_section(section_key) -> str:
     questions = {
         "context": "Could you describe the background or context of this request?",
