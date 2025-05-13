@@ -5,7 +5,8 @@
 from agents.classification_agent import classify_rfx
 
 def classification_node(state):
-    user_input = state.get("user_input", "").strip()
+    user_input = state.get("user_input") or ""
+
     collection = state.get("collection_name", "")
     uploaded = state.get("uploaded_texts", [])
 
@@ -22,12 +23,17 @@ def classification_node(state):
         )
         state["rfx_type"] = result.get("rfx_type", "Unknown")
 
-        # Trigger chat notification if classification succeeded
-        state["trigger_chat"] = True if state["rfx_type"] != "Unknown" else False
+        ## Trigger chat-based confirmation if a valid RFx type was found
+        if state["rfx_type"] != "Unknown" and not state.get("rfx_notified"):
+            state["next_action"] = "chat_after_classification"
+
 
     except Exception as e:
         state["rfx_type"] = "Unknown"
         state.setdefault("logs", []).append(f"[Error] Classification failed: {e}")
 
-    state["user_input"] = None
+    print("\n----after classification----")
+    print(state)
+    print("--------\n")
+
     return state

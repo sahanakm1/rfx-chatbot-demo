@@ -30,12 +30,20 @@ if not state.get("langgraph_ran") and (
     state.get("user_input") or
     state.get("pending_question") or
     state.get("uploaded_texts") or
+    state.get("next_action") or
     state.get("intent")):
     with st.spinner("🧠 Thinking..."):
         updated_state = graph.invoke(state)
-        updated_state["langgraph_ran"] = True  # Mark as executed to avoid re-running on render
+        updated_state["langgraph_ran"] = True
         st.session_state.conversation_state = updated_state
         state = updated_state
+
+        # 👇 Segunda invocación si el router dejó una acción pendiente
+        if updated_state.get("next_action"):
+            second_state = graph.invoke(updated_state)
+            second_state["langgraph_ran"] = True
+            st.session_state.conversation_state = second_state
+            state = second_state
 
 # Render the UI layout (three panels)
 st.markdown("<h1 style='text-align: center;'>RFx AI Builder Assistant</h1><hr>", unsafe_allow_html=True)
