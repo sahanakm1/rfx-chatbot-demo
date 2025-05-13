@@ -1,7 +1,13 @@
+# state_handler.py
+# Handles application-wide state logic, including initialization, chat history, document tracking,
+# logging, vague input handling, and section rendering logic.
+
+import uuid
 import streamlit as st
 import os
 
 def initialize_state():
+    # Initialize the default state for a conversation session
     return {
         "step": 0,
         "logs": [],
@@ -22,9 +28,11 @@ def initialize_state():
         "document_path": None,
         "show_left_panel": True,
         "show_right_panel": True,
+        "collection_name": f"rfx_session_{uuid.uuid4().hex[:8]}"
     }
 
 def set_background():
+    # Inject custom background and layout styles
     style = """
     <style>
     html, body, [data-testid="stAppViewContainer"], .main {
@@ -65,6 +73,7 @@ def set_background():
     st.markdown(style, unsafe_allow_html=True)
 
 def render_logs(state):
+    # Show a list of recorded log events, highlighting the latest
     if not state.get("logs"):
         return
 
@@ -82,10 +91,12 @@ def render_logs(state):
                 st.markdown(f"- {log}")
 
 def log_event(state, message):
+    # Add a log entry and move highlight to newest entry
     state["logs"].append(message)
     st.session_state.highlight_log_index = len(state["logs"]) - 1
 
 def render_chat_history(state):
+    # Render user and assistant messages in a styled format
     for msg in state.get("chat_history", []):
         role = msg.get("role", "assistant")
         content = msg.get("content", "")
@@ -97,28 +108,16 @@ def render_chat_history(state):
         border = "#cccccc" if is_user else "#e0e0e0"
 
         st.markdown(f"""
-        <div style='
-            display: flex;
-            justify-content: {align};
-            margin: 0.5rem 0;
-        '>
-            <div style='
-                background-color: {bg};
-                border: 1px solid {border};
-                border-radius: 10px;
-                padding: 1rem;
-                max-width: 80%;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            '>
-                <div style='font-size: 0.9rem; margin-bottom: 0.25rem;'>
-                    <b>{avatar}</b>
-                </div>
+        <div style='display: flex; justify-content: {align}; margin: 0.5rem 0;'>
+            <div style='background-color: {bg}; border: 1px solid {border}; border-radius: 10px; padding: 1rem; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
+                <div style='font-size: 0.9rem; margin-bottom: 0.25rem;'><b>{avatar}</b></div>
                 <div style='font-size: 1rem; line-height: 1.5;'>{content}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
 def render_download_button(filepath):
+    # Render a download button if the document exists
     if not filepath or not os.path.exists(filepath):
         return
     with open(filepath, "rb") as f:
@@ -130,6 +129,7 @@ def render_download_button(filepath):
         )
 
 def render_section_content(state):
+    # Render all generated sections with non-empty answers
     if not state.get("section_content"):
         st.markdown("_No sections generated yet._")
         return
@@ -157,10 +157,12 @@ def render_section_content(state):
         render_download_button(state["document_path"])
 
 def is_vague_response(user_input):
+    # Detect vague or ambiguous responses from user
     vague_keywords = ["idk", "not sure", "n/a", "tbd", "don't know", "no idea"]
     return any(kw in user_input.lower() for kw in vague_keywords)
 
 def render_vague_response_options(state, user_input):
+    # Give user the option to refine or skip when vague answer is detected
     col1, col2 = st.columns(2)
     with col1:
         if st.button("✍️ Help me write it"):
@@ -172,21 +174,8 @@ def render_vague_response_options(state, user_input):
             state["pending_refine_request"] = "skip"
             st.rerun()
 
-def render_step_5_input(state, question):
-    st.markdown(f"**{question}**")
-    user_input = st.text_area("✍️ Enter your response:", key="chat_box", height=100)
-
-    if user_input and st.button("Send", key="send_button"):
-        if is_vague_response(user_input):
-            render_vague_response_options(state, user_input)
-        else:
-            state["chat_history"].append({"role": "user", "content": user_input})
-            from orchestrator.orchestrator import process_user_response_to_question
-            response = process_user_response_to_question(state, user_input)
-            state["chat_history"].append({"role": "assistant", "content": response})
-            st.rerun()
-
 def handle_uploaded_files(state, uploaded_files):
+    # Handle uploaded documents and extract their contents
     import pdfplumber
 
     if "uploaded_texts" not in state:

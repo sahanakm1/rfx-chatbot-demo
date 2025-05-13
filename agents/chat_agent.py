@@ -4,24 +4,26 @@ from langchain_ollama import OllamaLLM
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 import re
 
-MODEL_NAME = "mistral"  # Use 'mistral' when performance is acceptable
-MAX_HISTORY = 4           # Limit how many past messages are sent to the LLM
+MODEL_NAME = "mistral"  # Use 'mistral' model if acceptable performance
+MAX_HISTORY = 4         # Number of previous messages to include in context
 
-# Load model
+# Initialize LLM
 llm = OllamaLLM(model=MODEL_NAME)
 
-# Load prompt from file
+# Load the initial system prompt for the assistant
 def load_system_prompt():
     with open("prompts/initial_prompt.txt", "r", encoding="utf-8") as f:
         return f.read()
 
+# Heuristics to detect vague user inputs
 def is_vague_input(text):
     text = text.lower().strip()
     vague_phrases = ["not sure", "idk", "don't know", "just exploring", "explore", "no idea", "need help"]
     return any(p in text for p in vague_phrases)
 
+# Handle full conversation flow (used in non-streaming context)
 def handle_conversation(state, user_input):
-    # Intent detection
+    # Set user's intent based on the input
     if is_vague_input(user_input):
         state["intent"] = "vague"
     elif "document" in user_input.lower():
@@ -32,7 +34,7 @@ def handle_conversation(state, user_input):
     history = state.get("chat_history", [])
     messages = [SystemMessage(content=load_system_prompt())]
 
-    # Use only recent messages to keep LLM fast
+    # Only include the last few exchanges to reduce token load
     recent_history = history[-MAX_HISTORY:]
     for msg in recent_history:
         role = msg.get("role", "assistant")
@@ -42,17 +44,17 @@ def handle_conversation(state, user_input):
         else:
             messages.append(AIMessage(content=content))
 
-    # Add current user message
+    # Append current user input
     messages.append(HumanMessage(content=user_input))
 
+    # Generate model response
     raw_response = llm.invoke(messages)
     cleaned_response = re.sub(r"^(AI|Assistant|System):\s*", "", raw_response).strip()
 
-    # Generate assistant reply
     return cleaned_response
 
+# Streaming version of the conversation
 def stream_conversation(state, user_input):
-
     if is_vague_input(user_input):
         state["intent"] = "vague"
     elif "document" in user_input.lower():
@@ -74,18 +76,30 @@ def stream_conversation(state, user_input):
 
     messages.append(HumanMessage(content=user_input))
 
-    return llm.stream(messages)  # returns a generator
+    # Return a generator that streams the model's response
+    return llm.stream(messages)
 
-
+# Generate a generic question if a brief section is missing
 def generate_question_for_section(section_key) -> str:
-    questions = {
-        "context": "Could you describe the background or context of this request?",
-        "goals": "What are the primary objectives you're aiming to achieve?",
-        "deliverables": "What specific outputs or deliverables are expected?",
-        "dates": "What are the important dates or deadlines to consider?"
-    }
+    print(section_key)
+    return f"Could you please provide more details about '{section_key}'?"
 
-    if isinstance(section_key, str):
-        return questions.get(section_key.lower(), f"Could you please provide more details about '{section_key}'?")
-    else:
-        return "Could you please clarify which section you're referring to?"
+# Add a friendly note about detected RFx type to the assistant's message
+def append_rfx_comment(state, context):
+    rfx_type = state.get("rfx_type", "unspecified")
+    prompt = f"""
+            You are an assistant helping a user respond to RFx requests.
+            The user hasn't asked directly about the RFx type, but you (the assistant) know it has been classified as: {rfx_type}.
+
+            Generate a short, helpful sentence to naturally inform the user of this classification.
+            Make it sound helpful and conversational. For example:
+            - "By the way, this seems to be an RFI."
+            - "It looks like you're dealing with an RFP. Want help drafting it?"
+            ---
+
+            Previous message from assistant (if any): 
+            {context}
+            """
+
+    response = llm.invoke([HumanMessage(content=prompt)])
+    return re.sub(r"^(AI|Assistant|System):\s*", "", response).strip()

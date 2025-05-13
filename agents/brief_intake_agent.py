@@ -1,22 +1,32 @@
 import hashlib
 import time
 from typing import List, Dict, Tuple
+
 from langchain_community.vectorstores import Qdrant
 from langchain.chains import RetrievalQA
 from langchain_ollama import OllamaLLM
+
 from agents.vector_store import get_cached_vector_store
 from agents.llm_calling import llm_calling
 
 from prompts.brief_structure import REQUIRED_STRUCTURE
 
+# Global context for reusing retriever and QA chain across calls
 retrieval_context = {
     "retriever": None,
     "qa_chain": None
 }
 
+# Main entry point: generates the initial brief structure and optionally prepares a QA system
+def run_brief_intake(
+    rfx_type: str, 
+    user_input: str, 
+    uploaded_texts: List[Dict[str, str]] = None, 
+    log_callback=None, 
+    doc_name="TEMP", 
+    collection_name=""
+) -> Tuple[Dict, List[Tuple[str, str]], str]:
 
-
-def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[str, str]] = None, log_callback=None, doc_name="TEMP", collection_name="") -> Tuple[Dict, List[Tuple[str, str]], str]:
     if log_callback is None:
         log_callback = print
 
@@ -26,14 +36,18 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
     brief = {}
     missing_sections = []
     disclaimer_msg = None
-
     qa_chain = None
+
+    # Try to initialize the retriever and QA system using the uploaded documents
     if uploaded_texts:
         try:
             start = time.time()
-        
             embed_model = llm_calling(model_name="mistral").call_embed_model()
-            vectordb = get_cached_vector_store(collection_name=collection_name, embeddings=embed_model, ensure_exists=False)
+            vectordb = get_cached_vector_store(
+                collection_name=collection_name, 
+                embeddings=embed_model, 
+                ensure_exists=False
+            )
 
             retriever = vectordb.as_retriever()
             retriever.search_kwargs["k"] = 2
@@ -42,6 +56,7 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
 
             log_callback("[STEP] Warming up LLM")
             start = time.time()
+
             llm = OllamaLLM(model="mistral")
             qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, chain_type="stuff")
 
@@ -57,8 +72,7 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
         log_callback("[INFO] No uploaded documents. Skipping RAG.")
         disclaimer_msg = "Since no supporting documents were uploaded, I'll ask a few questions to help fill in the brief."
 
-    
-    # Build all sections without answering yet
+    # Initialize the full brief structure with unanswered fields
     log_callback("[STEP] Initializing brief structure without QA")
     for section_key, sub_dict in REQUIRED_STRUCTURE.items():
         brief[section_key] = {}
@@ -66,16 +80,14 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
             question = sub_content["question"]
             title = sub_content["title"]
 
-            # Leave answer empty for now, and mark as missing
             brief[section_key][sub_key] = {
                 "title": title,
                 "question": question,
                 "answer": ""
             }
             missing_sections.append((section_key, sub_key))
-    
-    
-    # Add final geography question
+
+    # Add final geography-related question
     final_section = "Z"
     final_sub = "Z.1"
     final_question = "I see you are based in Spain. Is this the expected geography for this engagement?"
@@ -92,6 +104,7 @@ def run_brief_intake(rfx_type: str, user_input: str, uploaded_texts: List[Dict[s
 
     return brief, missing_sections, disclaimer_msg
 
+# Attempt to answer a pending question using RAG (retriever + LLM)
 def try_auto_answer(state: Dict) -> str:
     """Tries to auto-answer the pending question using RAG. Returns the next question or final message."""
     pending = state.get("pending_question")
@@ -105,21 +118,16 @@ def try_auto_answer(state: Dict) -> str:
     if retrieval_context["qa_chain"]:
         try:
             answer = retrieval_context["qa_chain"].invoke({"query": f"""
-                                                                You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
+                You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
+                Your task is to answer the following question using only the content retrieved from the provided documents.
+                If the documents do not contain enough information to answer with confidence, or if you are uncertain, respond with exactly: 'N/A'.
+                Do not make assumptions. Do not answer based on prior knowledge.
+                Question:
+                {question}
+                Make sure to answer 'N/A' in case there is not relevant information in the answer.
+                Avoid to do references to the document, just elaborate the answer as best you can.
+            """})
 
-                                                                Your task is to answer the following question using only the content retrieved from the provided documents.
-
-                                                                If the documents do not contain enough information to answer with confidence, or if you are uncertain, respond with exactly: 'N/A'.
-
-                                                                Do not make assumptions. Do not answer based on prior knowledge.
-
-                                                                Question:
-                                                                {question}
-
-                                                                Make sure to answer 'N/A' in case there is not relevant information in the answer.
-                                                                Avoid to do references to the document, just elaborate the answer as best you can.
-
-                                                            """})
             if isinstance(answer, str):
                 answer = answer.strip()
             elif isinstance(answer, dict):
@@ -131,16 +139,15 @@ def try_auto_answer(state: Dict) -> str:
                 state["brief"][section][sub]["answer"] = "N/A"
             else:
                 state["brief"][section][sub]["answer"] = answer
-            
+
         except Exception as e:
             state["brief"][section][sub]["answer"] = "N/A"
             state["logs"].append(f"Retrieval failed for {section}.{sub}: {e}")
     else:
         state["brief"][section][sub]["answer"] = "N/A"
 
-    
+    # Progress to next question if applicable
     if state["brief"][section][sub]["answer"] != "N/A":
-        # Avanzar
         state["missing_sections"] = [pair for pair in state["missing_sections"] if pair != (section, sub)]
         state["pending_question"] = None
 
@@ -156,6 +163,7 @@ def try_auto_answer(state: Dict) -> str:
 
     return "N/A"
 
+# Update the brief with the user's manual input
 def update_brief_with_user_response(state, user_input: str):
     section = state["pending_question"]["section"]
     sub = state["pending_question"]["sub"]
