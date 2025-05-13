@@ -103,3 +103,18 @@ def append_rfx_comment(state, context):
 
     response = llm.invoke([HumanMessage(content=prompt)])
     return re.sub(r"^(AI|Assistant|System):\s*", "", response).strip()
+
+
+# Generate a reformulated question for a given brief section and sub-question
+def generate_question_for_section(state, original_question):
+    prompt = f"""
+                You are helping a user complete a Request for {state.get("rfx_type")} brieft.
+
+                Rephrase the following question in a friendly, conversational, and helpful tone. Make sure it’s clear and easy to answer:
+
+                Original question: "{original_question}"
+
+                Avoid being too technical. Keep it short, natural, and specific.
+                """
+    response = llm.invoke([HumanMessage(content=prompt)])
+    return re.sub(r"^(AI|Assistant|System):\s*", "", response).strip()

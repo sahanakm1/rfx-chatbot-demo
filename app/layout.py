@@ -119,10 +119,14 @@ def render_center_panel(state):
     with st.container():
         st.markdown("<div class='chat-wrapper'>", unsafe_allow_html=True)
         st.markdown("<div class='scrollable-chat'>", unsafe_allow_html=True)
+
+        """
         print("\n📜 Chat history before rendering:")
         for msg in state.get("chat_history", []):
             print("-", msg)
+        """
         render_chat_history(state)
+        
 
         # Handle pending user input
         if state.get("pending_response"):
@@ -159,12 +163,12 @@ def render_right_panel(state):
         if state.pop("brief_updated", False):
             st.rerun()
 
-        st.markdown("### Debug Brief Data")
-        st.json(state.get("brief_data", {}))
+        st.markdown("### Brief Data")
+        #st.json(state.get("brief", {}))
 
         st.markdown("<p style='font-size:14px; font-weight:600;'>📁 Generated Content</p>", unsafe_allow_html=True)
-        if state.get("brief_data"):
-            for section, subs in state["brief_data"].items():
+        if state.get("brief"):
+            for section, subs in state["brief"].items():
                 with st.expander(section):
                     for subsec, content in subs.items():
                         answer = content.get("answer", "").strip()

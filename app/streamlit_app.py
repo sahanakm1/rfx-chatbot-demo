@@ -25,25 +25,28 @@ if "langgraph" not in st.session_state:
 
 graph = st.session_state.langgraph
 
-# Run LangGraph agent if any user interaction is pending
-if not state.get("langgraph_ran") and (
+# Run LangGraph repeatedly if new steps are triggered
+MAX_RUNS = 3
+run_count = 0
+should_continue = (
     state.get("user_input") or
-    state.get("pending_question") or
-    state.get("uploaded_texts") or
     state.get("next_action") or
-    state.get("intent")):
-    with st.spinner("🧠 Thinking..."):
-        updated_state = graph.invoke(state)
-        updated_state["langgraph_ran"] = True
-        st.session_state.conversation_state = updated_state
-        state = updated_state
+    (state.get("pending_question") and not state["pending_question"].get("asked")) or
+    state.get("intent") or
+    (state.get("uploaded_texts") and not state.get("brief"))
+)
 
-        # 👇 Segunda invocación si el router dejó una acción pendiente
-        if updated_state.get("next_action"):
-            second_state = graph.invoke(updated_state)
-            second_state["langgraph_ran"] = True
-            st.session_state.conversation_state = second_state
-            state = second_state
+while should_continue and run_count < MAX_RUNS:
+    with st.spinner("🧠 Thinking..."):
+        state = graph.invoke(state)
+        st.session_state.conversation_state = state
+        run_count += 1
+        should_continue = (
+            state.get("user_input") or
+            state.get("next_action") or
+            (state.get("pending_question") and not state["pending_question"].get("asked")) or
+            state.get("intent")
+        )
 
 # Render the UI layout (three panels)
 st.markdown("<h1 style='text-align: center;'>RFx AI Builder Assistant</h1><hr>", unsafe_allow_html=True)

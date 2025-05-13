@@ -83,7 +83,8 @@ def run_brief_intake(
             brief[section_key][sub_key] = {
                 "title": title,
                 "question": question,
-                "answer": ""
+                "answer": "N/A",
+                "asked": False
             }
             missing_sections.append((section_key, sub_key))
 
@@ -95,7 +96,7 @@ def run_brief_intake(
         final_sub: {
             "title": "Engagement Geography",
             "question": final_question,
-            "answer": ""
+            "answer": "N/A"
         }
     }
     missing_sections.append((final_section, final_sub))
@@ -158,24 +159,33 @@ def try_auto_answer(state: Dict) -> str:
                 "section": next_section,
                 "sub": next_sub,
                 "question": next_question,
+                "asked": False,
             }
         return state["brief"][section][sub]["answer"]
 
     return "N/A"
 
+
 # Update the brief with the user's manual input
 def update_brief_with_user_response(state, user_input: str):
-    section = state["pending_question"]["section"]
-    sub = state["pending_question"]["sub"]
+    pending = state.get("pending_question")
+    if not pending:
+        return "No question was pending."
 
-    if user_input.strip():
-        state["brief"][section][sub]["answer"] = user_input.strip()
-    else:
-        state["brief"][section][sub]["answer"] = "N/A"
+    section = pending.get("section")
+    sub = pending.get("sub")
 
+    if not section or not sub:
+        return "Missing section/subsection in pending question."
+
+    # Guarda la respuesta del usuario
+    state["brief"][section][sub]["answer"] = user_input.strip() if user_input.strip() else "N/A"
+
+    # Elimina esa sección del listado de secciones pendientes
     state["missing_sections"] = [pair for pair in state["missing_sections"] if pair != (section, sub)]
     state["pending_question"] = None
 
+    # Si aún quedan preguntas, prepara la siguiente
     if state["missing_sections"]:
         next_section, next_sub = state["missing_sections"][0]
         next_question = state["brief"][next_section][next_sub]["question"]
@@ -183,6 +193,7 @@ def update_brief_with_user_response(state, user_input: str):
             "section": next_section,
             "sub": next_sub,
             "question": next_question,
+            "asked": False,
         }
         return next_question
     else:
