@@ -12,7 +12,7 @@ from state_handler import render_logs, handle_uploaded_files, is_vague_response,
 def render_left_panel(state):
     # Upload documents panel
     with st.container():
-        st.markdown("<p style='font-size:13px; font-weight:600;'>\ud83d\udcc4 Upload Documents</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:13px; font-weight:600;'>📄 Upload Documents</p>", unsafe_allow_html=True)
         with st.container():
             # Style customization for file uploader
             st.markdown("""
@@ -35,13 +35,13 @@ def render_left_panel(state):
                     names = ", ".join(doc["name"] for doc in new_docs)
                     state["chat_history"].append({
                         "role": "assistant",
-                        "content": f"\ud83d\udccc Document(s) uploaded successfully: {names}"
+                        "content": f"📎 Document(s) uploaded successfully: {names}"
                     })
                     state["langgraph_ran"] = False
                     st.rerun()
 
         # Display logs
-        st.markdown("<p style='font-size:13px; font-weight:600; margin-top: 1rem;'>\ud83e\uddfe Logs</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:13px; font-weight:600; margin-top: 1rem;'>🧾 Logs</p>", unsafe_allow_html=True)
         render_logs(state)
 
         # Style reset buttons
@@ -56,7 +56,7 @@ def render_left_panel(state):
         </style>
         """, unsafe_allow_html=True)
         # Reset conversation
-        if st.button("\ud83d\udd01 Reset Chat", key="reset_chat_btn"):
+        if st.button("🔁 Reset Chat", key="reset_chat_btn"):
             from state_handler import initialize_state
             st.session_state.conversation_state = initialize_state()
             st.rerun()
@@ -67,7 +67,7 @@ def render_chat_history(state):
         role = msg.get("role", "assistant")
         content = msg.get("content", "")
         is_user = role == "user"
-        avatar = "\ud83d\udc64" if is_user else "\ud83e\udde0"
+        avatar = "👤" if is_user else "🧠"
         align = "flex-end" if is_user else "flex-start"
         bg = "#f5f5f5"
         border = "#f5f5f5"
@@ -159,7 +159,7 @@ def render_right_panel(state):
         st.markdown("### Debug Brief Data")
         st.json(state.get("brief_data", {}))
 
-        st.markdown("<p style='font-size:14px; font-weight:600;'>\ud83d\udcc1 Generated Content</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:14px; font-weight:600;'>📁 Generated Content</p>", unsafe_allow_html=True)
         if state.get("brief_data"):
             for section, subs in state["brief_data"].items():
                 with st.expander(section):
