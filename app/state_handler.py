@@ -6,6 +6,8 @@ import uuid
 import streamlit as st
 import os
 
+from agents.document_ingestor import ingest_document
+
 def initialize_state():
     # Initialize the default state for a conversation session
     return {
@@ -195,6 +197,10 @@ def handle_uploaded_files(state, uploaded_files):
                 content = f"[Warning] Could not extract text from {uploaded_file.name}: {e}"
         else:
             content = uploaded_file.read().decode("utf-8", errors="ignore")
+
+        #TODO: review this, Im not sure if this is the best place to do it
+        collection = state.get("collection_name", "rfx_default")
+        ingest_document(doc_id=uploaded_file.name, text=content, collection_name=collection)
 
         state["uploaded_texts"].append({
             "name": uploaded_file.name,

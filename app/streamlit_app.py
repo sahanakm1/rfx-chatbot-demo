@@ -15,13 +15,17 @@ st.set_page_config(page_title="RFx AI Builder Assistant", layout="wide")
 
 # Optional: Warm up GPT and embedding to reduce first-time lag
 from agents.llm_calling import llm_calling
-try:
+@st.cache_resource
+def get_warmed_models():
     print("[Warmup] Initializing GPT and embedding models...")
-    _ = llm_calling().call_llm().invoke("ping")
-    _ = llm_calling().call_embed_model().embed_documents(["warmup"])
+    llm = llm_calling()
+    llm.call_llm().invoke("ping")
+    llm.call_embed_model().embed_documents(["warmup"])
     print("[Warmup] Ready.")
-except Exception as e:
-    print(f"[Warmup error] {e}")
+    return llm
+
+# run the warnup only once
+_ = get_warmed_models()
 
 
 # Initialize conversation state if not already set
@@ -31,8 +35,12 @@ if "conversation_state" not in st.session_state:
 state = st.session_state.conversation_state
 
 # Build LangGraph only once per session
+@st.cache_resource
+def get_graph():
+    return build_graph()
+
 if "langgraph" not in st.session_state:
-    st.session_state.langgraph = build_graph()
+    st.session_state.langgraph = get_graph()
 
 graph = st.session_state.langgraph
 

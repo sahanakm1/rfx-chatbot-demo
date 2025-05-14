@@ -152,7 +152,7 @@ def should_trigger_classification(state):
     response = llm.invoke([{"role": "user", "content": prompt}])
 
     # 🔍 Log to terminal
-    print("📜 LLM Prompt:\n", prompt)
-    print("🤖 LLM Response:\n", response.content.strip())
+    #print("📜 LLM Prompt:\n", prompt)
+    print("🤖 SouldClassify LLM Response:", response.content.strip())
 
     return response.content.strip().upper() == "YES"
