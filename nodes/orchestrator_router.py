@@ -15,6 +15,14 @@ def orchestrator_router(state):
         print("[router] ✅ User responded after classification, clearing wait")
         state["wait_after_classification"] = False
 
+    # D. Explicit next action: ask the user a question
+    if state.get("next_action") == "ask_brief_question":
+        #print(state)
+        print("--------\n")
+        state["next_action"] = ""
+        print("[router] Asking brief question → chat_agent")
+        return "brief_intake_agent" # return "chat_agent"
+
     
 
     # A. User replied to a pending brief question
@@ -30,30 +38,24 @@ def orchestrator_router(state):
     
 
     # B. LLM-driven readiness → classification
-    elif not state.get("rfx_type") and should_trigger_classification(state):
+    if not state.get("rfx_type") and should_trigger_classification(state):
         print(state)
         print("--------\n")
         print("[router] LLM says we're ready → classification_agent")
         return "classification_agent"
 
     # C. Chat follow-up after classification
-    elif state.get("next_action") == "chat_after_classification":
+    if state.get("next_action") == "chat_after_classification":
         print(state)
         print("--------\n")
         state["next_action"] = ""
         print("[router] Post-classification notification → chat_agent")
         return "chat_agent"
     
-    # D. Explicit next action: ask the user a question
-    elif state.get("next_action") == "ask_brief_question":
-        #print(state)
-        print("--------\n")
-        state["next_action"] = ""
-        print("[router] Asking brief question → chat_agent")
-        return "brief_intake_agent" # return "chat_agent"
+    
     
     # D. no pudo responder el modelo, preguntar al usuario
-    elif state.get("next_action") == "ask_user_brief_question":
+    if state.get("next_action") == "ask_user_brief_question":
         print(state)
         print("--------\n")
         state["next_action"] = ""
@@ -68,7 +70,7 @@ def orchestrator_router(state):
 
     
     # E. RFx type is known but brief not started → start brief
-    elif state.get("next_action")=="start_brieft"  and state.get("rfx_type") and not state.get("brief")  and not state.get("pending_question") and state.get("next_action") != "wait_after_classification":
+    if state.get("next_action")=="start_brieft"  and state.get("rfx_type") and not state.get("brief")  and not state.get("pending_question") and state.get("next_action") != "wait_after_classification":
         print(state)
         print("--------\n")
         print("[router] Generating initial brief → brief_intake_agent")

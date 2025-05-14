@@ -1,7 +1,7 @@
 # brief_node.py
 # Handles the creation and progressive completion of the brief structure.
 
-from agents.brief_intake_agent import run_brief_intake, try_auto_answer, retrieval_context
+from agents.brief_intake_agent import run_brief_intake, try_auto_answer, retrieval_context, update_brief_with_user_response
 from agents.chat_agent import generate_question_for_section
 
 def brief_node(state):
@@ -28,20 +28,20 @@ def brief_node(state):
         state["missing_sections"] = missing
         state["disclaimer"] = disclaimer
         state["pending_question"] = pending
+        state["user_input"] = None
+
 
     # Step 2: If the user just answered a pending question, record it
     elif state.get("pending_question") and user_input:
         print("\t---brief node--- processing user response to pending question")
-        section = state["pending_question"]["section"]
-        sub = state["pending_question"]["sub"]
-        state["brief"][section][sub]["answer"] = user_input
-        state["missing_sections"] = [pair for pair in state["missing_sections"] if pair != (section, sub)]
+        # update answer and pending_question/missing_sections variables
+        next_question = update_brief_with_user_response(state, user_input)
         state["brief_updated"] = True
-        #state["user_input"] = None  # Limpiar después de guardar
+        state["user_input"] = None  # Limpiar después de guardar
         
 
     # Step 3: Process the next pending section if available
-    if state.get("missing_sections"):
+    if state.get("missing_sections") and state['next_action'] != "start_brieft":
         section, sub = state["missing_sections"][0]
         question = state["brief"][section][sub]["question"]
         
@@ -65,16 +65,22 @@ def brief_node(state):
             print("\t---brief node--- could not auto-answer, asking user")
             state["pending_question"] = {"section": section, "sub": sub, "question": question, "asked": False}
             state["next_action"] = "ask_user_brief_question"
+            state["user_input"] = None
         
         if auto_answered and answer != "N/A":
             print("\t---brief node--- LLM auto answer --- continue for next question")
             state["next_action"] = "ask_brief_question"
             # TODO: confirm with user that the answer is ok
 
+        
 
-    else:
+
+    elif not state.get("missing_sections"):
         print("\t---brief node--- no more missing sections")
         state["pending_question"] = None
+
+    else:
+        state['next_action'] = "ask_brief_question"
 
     #state["user_input"] = None
 

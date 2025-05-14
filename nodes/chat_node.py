@@ -20,6 +20,7 @@ def chat_node(state):
         state["llm_response"] = rewritten
         state["chat_history"].append({"role": "assistant", "content": rewritten})
         state["pending_question"]["asked"] = True
+        state["next_action"] = ""
         return state
 
     # 2. Notify user about detected RFx type

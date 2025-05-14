@@ -63,7 +63,7 @@ while should_continue and run_count < MAX_RUNS:
         should_continue = (
             state.get("user_input") or
             state.get("next_action") or
-            (state.get("pending_question") and not state["pending_question"].get("asked")) or
+            state.get("pending_question") or
             state.get("intent")
         )
 

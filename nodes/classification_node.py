@@ -31,6 +31,7 @@ def classification_node(state):
         if state["rfx_type"] != "Unknown" and not state.get("rfx_notified"):
             print("\t---classification node---classify_rfx---notify user")
             state["next_action"] = "chat_after_classification"
+            state["user_input"] = ""
 
 
     except Exception as e:

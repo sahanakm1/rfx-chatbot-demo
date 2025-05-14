@@ -200,6 +200,7 @@ def update_brief_with_user_response(state, user_input: str):
 
     # Guarda la respuesta del usuario
     state["brief"][section][sub]["answer"] = user_input.strip() if user_input.strip() else "N/A"
+    state["brief"][section][sub]["asked"] = True
 
     # Elimina esa sección del listado de secciones pendientes
     state["missing_sections"] = [pair for pair in state["missing_sections"] if pair != (section, sub)]
@@ -218,4 +219,4 @@ def update_brief_with_user_response(state, user_input: str):
         return next_question
     else:
         state["pending_question"] = None
-        return "Thanks! All required inputs have been collected."
+        return ""
