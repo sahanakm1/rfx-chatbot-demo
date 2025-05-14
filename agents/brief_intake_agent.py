@@ -1,10 +1,11 @@
+# brief_intake_agent.py
 import hashlib
 import time
 from typing import List, Dict, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from langchain_community.vectorstores import Qdrant
 from langchain.chains import RetrievalQA
-#from langchain_ollama import OllamaLLM
 
 from agents.vector_store import get_cached_vector_store
 from agents.llm_calling import llm_calling
@@ -51,14 +52,13 @@ def run_brief_intake(
             )
 
             retriever = vectordb.as_retriever()
-            retriever.search_kwargs["k"] = 2
+            retriever.search_kwargs["k"] = 3
 
             log_callback(f"[TIMING] Embedding + vectorstore creation took {round((time.time() - start)/60, 2)} min")
 
             log_callback("[STEP] Warming up LLM")
             start = time.time()
 
-#            llm = OllamaLLM(model="mistral")
             # Calling gpt model
             llm = llm_calling().call_llm()
             qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, chain_type="stuff")
@@ -136,9 +136,9 @@ def try_auto_answer(state: Dict) -> str:
             print("\t\t---brief node--- trying auto-answer via RAG ---- answering")
             answer = retrieval_context["qa_chain"].invoke({"query": f"""
                 You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
-                Your task is to answer the following question using only the content retrieved from the provided documents.
+                Your task is to answer the following question using the content retrieved from the provided documents.
                 If the documents do not contain enough information to answer with confidence, or if you are uncertain, respond with exactly: 'N/A'.
-                Do not make assumptions. Do not answer based on prior knowledge.
+                
                 Question:
                 {question}
                 Make sure to answer 'N/A' in case there is not relevant information in the answer.
@@ -220,3 +220,71 @@ def update_brief_with_user_response(state, user_input: str):
     else:
         state["pending_question"] = None
         return ""
+
+
+
+def try_auto_answer_batch(state: Dict, batch: List[Tuple[str, str]], max_workers: int = 5) -> Tuple[Dict[Tuple[str, str], str], List[Tuple[str, str]]]:
+    """
+    Tries to answer a batch of brief questions in parallel using threading.
+    Prints retrieved chunks and uses them explicitly for answering.
+    Returns a dict of resolved answers and a list of unresolved section/subsection pairs.
+    """
+    resolved = {}
+    unresolved = []
+
+    retriever = retrieval_context.get("retriever")
+    if not retriever:
+        return resolved, batch
+
+    def process_section(section, sub):
+        question = state["brief"][section][sub]["question"]
+        try:
+            # Paso 1: Recuperar documentos
+            retrieved_docs = retriever.get_relevant_documents(question)
+            retrieved_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
+
+            # Paso 2: Imprimir los chunks recuperados
+            #print(f"\n[Retrieved for {section} - {sub}]\n{retrieved_text}\n")
+
+            # Paso 3: Llamar al modelo con los documentos recuperados
+            llm = llm_calling().call_llm()
+            prompt = f"""
+                    You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
+                    Your task is to answer the following question using only the content provided below.
+                    If the content does not contain enough information to answer with confidence, or if you are uncertain, respond with exactly: 'N/A'.
+                    Do not make assumptions. Do not answer based on prior knowledge.
+
+                    Context:
+                    {retrieved_text}
+
+                    Question:
+                    {question}
+                    """
+            response = llm.invoke(prompt)
+            
+            if hasattr(response, "content"):
+                answer = response.content.strip()                
+            else:
+                answer = str(response).strip()
+
+            return (section, sub, answer)
+        except Exception as e:
+            print(f"Error processing {section} - {sub}: {e}")
+            return (section, sub, "N/A")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(process_section, section, sub): (section, sub)
+            for section, sub in batch
+        }
+
+        for future in as_completed(futures):
+            section, sub, answer = future.result()
+            if "N/A" in answer:
+                unresolved.append((section, sub))
+            else:
+                resolved[(section, sub)] = answer
+                state["brief"][section][sub]["answer"] = answer
+
+    return resolved, unresolved
+

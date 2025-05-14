@@ -1,18 +1,23 @@
 # brief_node.py
 # Handles the creation and progressive completion of the brief structure.
 
-from agents.brief_intake_agent import run_brief_intake, try_auto_answer, retrieval_context, update_brief_with_user_response
+from agents.brief_intake_agent import run_brief_intake, try_auto_answer_batch, retrieval_context, update_brief_with_user_response
 from agents.chat_agent import generate_question_for_section
 
 def brief_node(state):
     print("\n---brief node---")
-    print("\t\t---next_action---", state.get("next_action",""))
-    print("\t\t---user_input---", state.get("user_input",""))
+    print("\t\t---next_action---", state.get("next_action", ""))
+    print("\t\t---user_input---", state.get("user_input", ""))
+
     rfx_type = state.get("rfx_type")
     user_input = (state.get("user_input") or "").strip()
     texts = state.get("uploaded_texts", [])
     doc_name = state.get("doc_name", "TEMP")
     collection = state.get("collection_name", "")
+
+    # Initialize list to track which sections failed auto-generation
+    if "unanswerable_sections" not in state:
+        state["unanswerable_sections"] = []
 
     # Step 1: If no brief exists, initialize it
     if not state.get("brief"):
@@ -30,58 +35,56 @@ def brief_node(state):
         state["pending_question"] = pending
         state["user_input"] = None
 
-
     # Step 2: If the user just answered a pending question, record it
     elif state.get("pending_question") and user_input:
         print("\t---brief node--- processing user response to pending question")
-        # update answer and pending_question/missing_sections variables
-        next_question = update_brief_with_user_response(state, user_input)
+        update_brief_with_user_response(state, user_input)
         state["brief_updated"] = True
-        state["user_input"] = None  # Limpiar después de guardar
-        
+        state["user_input"] = None
 
-    # Step 3: Process the next pending section if available
-    if state.get("missing_sections") and state['next_action'] != "start_brieft":
-        section, sub = state["missing_sections"][0]
-        question = state["brief"][section][sub]["question"]
-        
+    # Step 3: Try to resolve up to 5 missing sections in parallel using threading
+    # Do not retry sections already deemed unanswerable by the model
+    unresolved_set = set(state.get("unanswerable_sections", []))
+    remaining = [pair for pair in state.get("missing_sections", []) if pair not in unresolved_set]
 
-        # Try to auto-answer with RAG first
-        auto_answered = False
-        answer = "N\A"
-        if retrieval_context["qa_chain"]:
-            print("\t---brief node--- trying auto-answer via RAG")
-            answer = try_auto_answer(state)
-            if answer != "N/A":
-                state["chat_history"].append({
-                    "role": "assistant",
-                    "content": f"\u2705 Filled section **{section}.{sub}** from uploaded documents:\n\n{answer}"
-                })
-                state["brief_updated"] = True
-                auto_answered = True
+    if remaining and state['next_action'] != "start_brieft":
+        batch = remaining[:3]  # Process 5 sections at a time
+        print("\t---brief node--- try auto answer batch mode")
+        resolved, unresolved = try_auto_answer_batch(state, batch)
+        print("\t---brief node--- resolved answers: "+str(len(resolved)))
+        print("\t---brief node--- unresolved answers: "+str(len(unresolved)))
 
-        # If not auto-answered, ask the user
-        if not auto_answered:
-            print("\t---brief node--- could not auto-answer, asking user")
+        for (section, sub), answer in resolved.items():
+            state["chat_history"].append({
+                "role": "assistant",
+                "content": f"✅ Filled section **{section}.{sub}** from uploaded documents:\n\n{answer}"
+            })
+
+        if resolved:
+            state["brief_updated"] = True
+
+        # Remove resolved from missing_sections
+        state["missing_sections"] = [pair for pair in state["missing_sections"] if pair not in resolved]
+
+        # Append unresolved to a permanent list to avoid retrying them
+        state["unanswerable_sections"].extend(unresolved)
+
+        # Ask user about the first unresolved if there’s none pending yet
+        if unresolved:
+            section, sub = unresolved[0]
+            question = state["brief"][section][sub]["question"]
             state["pending_question"] = {"section": section, "sub": sub, "question": question, "asked": False}
             state["next_action"] = "ask_user_brief_question"
-            state["user_input"] = None
-        
-        if auto_answered and answer != "N/A":
-            print("\t---brief node--- LLM auto answer --- continue for next question")
+        else:
+            # All batch items were successfully answered, continue to next round
+            state["pending_question"] = None
             state["next_action"] = "ask_brief_question"
-            # TODO: confirm with user that the answer is ok
 
-        
-
-
+    # Final step: if no missing sections remain
     elif not state.get("missing_sections"):
         print("\t---brief node--- no more missing sections")
         state["pending_question"] = None
-
     else:
         state['next_action'] = "ask_brief_question"
-
-    #state["user_input"] = None
 
     return state
