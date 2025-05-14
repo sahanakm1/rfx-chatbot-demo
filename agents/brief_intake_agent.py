@@ -91,6 +91,18 @@ def run_brief_intake(
             }
             missing_sections.append((section_key, sub_key))
 
+    # initialize pending question
+    pending_question = {}
+    if missing_sections:
+            next_section, next_sub = missing_sections[0]
+            next_question = brief[next_section][next_sub]["question"]
+            pending_question = {
+                "section": next_section,
+                "sub": next_sub,
+                "question": next_question,
+                "asked": False,
+            }
+
     # Add final geography-related question
     final_section = "Z"
     final_sub = "Z.1"
@@ -106,7 +118,7 @@ def run_brief_intake(
 
     log_callback(f"[TIMING] Total brief generation took {round((time.time() - start_total)/60, 2)} min")
 
-    return brief, missing_sections, disclaimer_msg
+    return brief, missing_sections, pending_question, disclaimer_msg
 
 # Attempt to answer a pending question using RAG (retriever + LLM)
 def try_auto_answer(state: Dict) -> str:
@@ -121,6 +133,7 @@ def try_auto_answer(state: Dict) -> str:
 
     if retrieval_context["qa_chain"]:
         try:
+            print("\t\t---brief node--- trying auto-answer via RAG ---- answering")
             answer = retrieval_context["qa_chain"].invoke({"query": f"""
                 You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
                 Your task is to answer the following question using only the content retrieved from the provided documents.
@@ -144,6 +157,8 @@ def try_auto_answer(state: Dict) -> str:
             else:
                 state["brief"][section][sub]["answer"] = answer
 
+            print("\t\t---brief node--- trying auto-answer via RAG ---- answering: "+ answer[:100])
+
         except Exception as e:
             state["brief"][section][sub]["answer"] = "N/A"
             state["logs"].append(f"Retrieval failed for {section}.{sub}: {e}")
@@ -152,6 +167,7 @@ def try_auto_answer(state: Dict) -> str:
 
     # Progress to next question if applicable
     if state["brief"][section][sub]["answer"] != "N/A":
+    
         state["missing_sections"] = [pair for pair in state["missing_sections"] if pair != (section, sub)]
         state["pending_question"] = None
 
@@ -165,6 +181,7 @@ def try_auto_answer(state: Dict) -> str:
                 "asked": False,
             }
         return state["brief"][section][sub]["answer"]
+    
 
     return "N/A"
 

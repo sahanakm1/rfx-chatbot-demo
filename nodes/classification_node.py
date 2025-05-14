@@ -5,7 +5,7 @@
 from agents.classification_agent import classify_rfx
 
 def classification_node(state):
-    print("/n---classification node---")
+    print("\n---classification node---")
 
     user_input = state.get("user_input") or state.get("pending_response") or ""
 
@@ -13,13 +13,13 @@ def classification_node(state):
     uploaded = state.get("uploaded_texts", [])
 
     if not user_input and not uploaded:
-        print("/t---classification node---no input no doc")
+        print("\t---classification node---no input no doc")
         state["rfx_type"] = "Unknown"
         state.setdefault("logs", []).append("[Warning] No input or documents provided for classification.")
         return state
 
     try:
-        print("/t---classification node---classify_rfx")
+        print("\t---classification node---classify_rfx")
         result = classify_rfx(
             user_input=user_input,
             collection_name=collection,
@@ -29,7 +29,7 @@ def classification_node(state):
 
         ## Trigger chat-based confirmation if a valid RFx type was found
         if state["rfx_type"] != "Unknown" and not state.get("rfx_notified"):
-            print("/t---classification node---classify_rfx---notify user")
+            print("\t---classification node---classify_rfx---notify user")
             state["next_action"] = "chat_after_classification"
 
 

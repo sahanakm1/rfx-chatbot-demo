@@ -110,6 +110,7 @@ def render_center_panel(state):
     if "chat_history" not in state:
         state["chat_history"] = []
 
+    # If conversation hasn't started, welcome the user
     if not state.get("conversation_started"):
         welcome = "Hi! I’m your RFx assistant. How can I help you today?"
         state["chat_history"].append({"role": "assistant", "content": welcome})
@@ -120,39 +121,28 @@ def render_center_panel(state):
         st.markdown("<div class='chat-wrapper'>", unsafe_allow_html=True)
         st.markdown("<div class='scrollable-chat'>", unsafe_allow_html=True)
 
-        """
-        print("\n📜 Chat history before rendering:")
-        for msg in state.get("chat_history", []):
-            print("-", msg)
-        """
+        # Render previous messages
         render_chat_history(state)
-        
 
-        # Handle pending user input
+        # Handle any pending_response from earlier UI
         if state.get("pending_response"):
             user_input = state.pop("pending_response")
+            state["chat_history"].append({"role": "user", "content": user_input})
             state["user_input"] = user_input
             state["langgraph_ran"] = False
             st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)  # scrollable-chat
         st.markdown("<div class='fixed-input'>", unsafe_allow_html=True)
 
+        # Chat input
         user_input = st.chat_input("Please describe your RFx need or upload a document to begin.")
         if user_input:
-            if state.get("pending_question"):
-                if is_vague_response(user_input):
-                    render_vague_response_options(state, user_input)
-                    return
-                state["chat_history"].append({"role": "user", "content": user_input})
-                state["user_input"] = user_input
-                state["langgraph_ran"] = False
-                st.rerun()
-            else:
-                state["chat_history"].append({"role": "user", "content": user_input})
-                state["pending_response"] = user_input
-                state["langgraph_ran"] = False
-                st.rerun()
+            # Always append to history immediately
+            state["chat_history"].append({"role": "user", "content": user_input})
+            state["user_input"] = user_input
+            state["langgraph_ran"] = False
+            st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)  # fixed-input
         st.markdown("</div>", unsafe_allow_html=True)  # chat-wrapper

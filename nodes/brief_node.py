@@ -6,6 +6,8 @@ from agents.chat_agent import generate_question_for_section
 
 def brief_node(state):
     print("\n---brief node---")
+    print("\t\t---next_action---", state.get("next_action",""))
+    print("\t\t---user_input---", state.get("user_input",""))
     rfx_type = state.get("rfx_type")
     user_input = (state.get("user_input") or "").strip()
     texts = state.get("uploaded_texts", [])
@@ -15,7 +17,7 @@ def brief_node(state):
     # Step 1: If no brief exists, initialize it
     if not state.get("brief"):
         print("\t---brief node--- run brief initialization")
-        brief, missing, disclaimer = run_brief_intake(
+        brief, missing, pending, disclaimer = run_brief_intake(
             rfx_type=rfx_type,
             user_input=user_input,
             uploaded_texts=texts,
@@ -25,6 +27,7 @@ def brief_node(state):
         state["brief"] = brief
         state["missing_sections"] = missing
         state["disclaimer"] = disclaimer
+        state["pending_question"] = pending
 
     # Step 2: If the user just answered a pending question, record it
     elif state.get("pending_question") and user_input:
@@ -34,16 +37,18 @@ def brief_node(state):
         state["brief"][section][sub]["answer"] = user_input
         state["missing_sections"] = [pair for pair in state["missing_sections"] if pair != (section, sub)]
         state["brief_updated"] = True
-        state["user_input"] = None  # Limpiar después de guardar
-        state["pending_question"] = None
+        #state["user_input"] = None  # Limpiar después de guardar
+        
 
     # Step 3: Process the next pending section if available
     if state.get("missing_sections"):
         section, sub = state["missing_sections"][0]
         question = state["brief"][section][sub]["question"]
+        
 
         # Try to auto-answer with RAG first
         auto_answered = False
+        answer = "N\A"
         if retrieval_context["qa_chain"]:
             print("\t---brief node--- trying auto-answer via RAG")
             answer = try_auto_answer(state)
@@ -59,12 +64,18 @@ def brief_node(state):
         if not auto_answered:
             print("\t---brief node--- could not auto-answer, asking user")
             state["pending_question"] = {"section": section, "sub": sub, "question": question, "asked": False}
+            state["next_action"] = "ask_user_brief_question"
+        
+        if auto_answered and answer != "N/A":
+            print("\t---brief node--- LLM auto answer --- continue for next question")
             state["next_action"] = "ask_brief_question"
+            # TODO: confirm with user that the answer is ok
+
 
     else:
         print("\t---brief node--- no more missing sections")
         state["pending_question"] = None
 
-    state["user_input"] = None
+    #state["user_input"] = None
 
     return state
