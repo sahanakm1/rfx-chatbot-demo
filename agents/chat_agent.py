@@ -1,14 +1,18 @@
 # agents/chat_agent.py
 
-from langchain_ollama import OllamaLLM
+#from langchain_ollama import OllamaLLM
+#MODEL_NAME = "mistral"  # Use 'mistral' model if acceptable performance
+# Initialize LLM
+#llm = OllamaLLM(model=MODEL_NAME)
+
+from agents.llm_calling import llm_calling
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 import re
 
-MODEL_NAME = "mistral"  # Use 'mistral' model if acceptable performance
 MAX_HISTORY = 4         # Number of previous messages to include in context
 
-# Initialize LLM
-llm = OllamaLLM(model=MODEL_NAME)
+# Calling Gpt model
+llm = llm_calling().call_llm()
 
 # Load the initial system prompt for the assistant
 def load_system_prompt():
@@ -31,6 +35,10 @@ def handle_conversation(state, user_input):
     elif any(word in user_input.lower() for word in ["pricing", "proposal", "quote", "quotation", "request", "vendor", "build", "create"]):
         state["intent"] = "create"
 
+    # ✅ Exit early if intent is clear
+    if state.get("rfx_type") or state.get("intent") == "create":
+        return "Got it. Let me know if you'd like help building your RFx or uploading supporting details."
+
     history = state.get("chat_history", [])
     messages = [SystemMessage(content=load_system_prompt())]
 
@@ -49,9 +57,14 @@ def handle_conversation(state, user_input):
 
     # Generate model response
     raw_response = llm.invoke(messages)
-    cleaned_response = re.sub(r"^(AI|Assistant|System):\s*", "", raw_response).strip()
+    content = raw_response.content if hasattr(raw_response, "content") else raw_response
+    if content is None:
+        content = ""
+
+    cleaned_response = re.sub(r"^(AI|Assistant|System):\s*", "", content).strip()
 
     return cleaned_response
+
 
 # Streaming version of the conversation
 def stream_conversation(state, user_input):
@@ -102,7 +115,9 @@ def append_rfx_comment(state, context):
             """
 
     response = llm.invoke([HumanMessage(content=prompt)])
-    return re.sub(r"^(AI|Assistant|System):\s*", "", response).strip()
+    content = response.content if hasattr(response, "content") else str(response)
+    return re.sub(r"^(AI|Assistant|System):\s*", "", content).strip()
+    #return re.sub(r"^(AI|Assistant|System):\s*", "", response).strip()
 
 
 # Generate a reformulated question for a given brief section and sub-question
@@ -117,4 +132,27 @@ def generate_question_for_section(state, original_question):
                 Avoid being too technical. Keep it short, natural, and specific.
                 """
     response = llm.invoke([HumanMessage(content=prompt)])
-    return re.sub(r"^(AI|Assistant|System):\s*", "", response).strip()
+    return re.sub(r"^(AI|Assistant|System):\s*", "", str(response.content)).strip()
+
+def should_trigger_classification(state):
+
+    print("🔍 should_trigger_classification called")
+    recent_inputs = [m["content"] for m in state.get("chat_history", []) if m["role"] == "user"]
+    if not recent_inputs:
+        return False
+
+    chat_history = "\n".join(
+        f"{msg['role']}: {msg['content']}" for msg in state["chat_history"]
+    )
+
+    with open("prompts/classification_readiness_prompt.txt", encoding="utf-8") as f:
+        prompt = f.read().replace("{chat_history}", chat_history)
+
+    llm = llm_calling().call_llm()
+    response = llm.invoke([{"role": "user", "content": prompt}])
+
+    # 🔍 Log to terminal
+    print("📜 LLM Prompt:\n", prompt)
+    print("🤖 LLM Response:\n", response.content.strip())
+
+    return response.content.strip().upper() == "YES"

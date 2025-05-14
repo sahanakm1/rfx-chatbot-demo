@@ -15,13 +15,14 @@ def normalize_rfx_type(value: str) -> str:
     return "Unknown"
 
 # Classify an RFx document using RAG (LLM + vector DB retrieval)
-def classify_with_rag(vector_db, chat_context: str = "", model_name: str = "mistral") -> str:
+def classify_with_rag(vector_db, chat_context: str = "") -> str:
     # Load classification prompt
     with open(PROMPT_PATH) as f:
         system_prompt = f.read()
 
     # Initialize LLM
-    llm = llm_calling(model_name=model_name).call_llm()
+    #llm = llm_calling(model_name=model_name).call_llm()
+    llm = llm_calling().call_llm()
 
     # Retrieve top 5 most relevant chunks from the document
     retrieved_docs = vector_db.similarity_search("What type of RFx is this document?", k=5)

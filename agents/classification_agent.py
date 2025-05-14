@@ -6,7 +6,6 @@ from agents.intent_classifier import classify_by_intent
 def classify_rfx(
     user_input: str = "", 
     collection_name: str = "", 
-    model_name: str = "mistral",
     uploaded_texts: list = None, 
     log_callback=None
 ) -> dict:
@@ -34,16 +33,15 @@ def classify_rfx(
             log("[INFO] Using intent classification with document content...")
             # Concatenate all uploaded document contents and classify
             rfx_type = classify_by_intent(
-                "\n\n".join([doc["content"] for doc in uploaded_texts]), 
-                model_name=model_name
+                "\n\n".join([doc["content"] for doc in uploaded_texts])
             )
         except Exception as e:
             log(f"[ERROR] Classification with vector DB failed: {e}")
             log("[INFO] Retrying with direct user input classification...")
-            rfx_type = classify_by_intent(user_input, model_name=model_name)
+            rfx_type = classify_by_intent(user_input)
     else:
         # Case: no documents, only classify based on user input
         log("[INFO] No documents uploaded. Using intent classification...")
-        rfx_type = classify_by_intent(user_input, model_name=model_name)
+        rfx_type = classify_by_intent(user_input)
 
     return {"rfx_type": rfx_type, "logs": log_msgs}

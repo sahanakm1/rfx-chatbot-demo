@@ -13,6 +13,17 @@ from orchestrator.main_graph import build_graph
 # Set Streamlit app configuration
 st.set_page_config(page_title="RFx AI Builder Assistant", layout="wide")
 
+# Optional: Warm up GPT and embedding to reduce first-time lag
+from agents.llm_calling import llm_calling
+try:
+    print("[Warmup] Initializing GPT and embedding models...")
+    _ = llm_calling().call_llm().invoke("ping")
+    _ = llm_calling().call_embed_model().embed_documents(["warmup"])
+    print("[Warmup] Ready.")
+except Exception as e:
+    print(f"[Warmup error] {e}")
+
+
 # Initialize conversation state if not already set
 if "conversation_state" not in st.session_state:
     st.session_state.conversation_state = initialize_state()

@@ -7,7 +7,7 @@ from agents.chat_agent import generate_question_for_section
 def brief_node(state):
     print("\n---brief node---")
     rfx_type = state.get("rfx_type")
-    user_input = state.get("user_input", "").strip()
+    user_input = (state.get("user_input") or "").strip()
     texts = state.get("uploaded_texts", [])
     doc_name = state.get("doc_name", "TEMP")
     collection = state.get("collection_name", "")

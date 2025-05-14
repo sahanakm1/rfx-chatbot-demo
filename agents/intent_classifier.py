@@ -15,7 +15,7 @@ def normalize_rfx_type(value: str) -> str:
     return "Unknown"
 
 # Classify RFx intent using only the user's input (no RAG or documents)
-def classify_by_intent(user_input: str, model_name: str = "mistral") -> str:
+def classify_by_intent(user_input: str) -> str:
     # Load system prompt for classification
     with open(PROMPT_PATH) as f:
         system_prompt = f.read()
@@ -25,7 +25,8 @@ def classify_by_intent(user_input: str, model_name: str = "mistral") -> str:
         return "Unknown"
 
     # Initialize LLM
-    llm = llm_calling(model_name=model_name).call_llm()
+    #llm = llm_calling(model_name=model_name).call_llm()
+    llm = llm_calling().call_llm()
 
     # Construct LLM input message
     messages = [

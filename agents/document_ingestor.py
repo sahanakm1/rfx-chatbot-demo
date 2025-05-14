@@ -14,7 +14,6 @@ _created_collections = set()
 def ingest_document(
     doc_id: str, 
     text: str, 
-    model_name: str = "mistral", 
     collection_name: str = "rfx_classification"
 ) -> str:
 
@@ -36,7 +35,8 @@ def ingest_document(
         raise ValueError(f"Document '{doc_id}' produced no valid chunks.")
 
     # Load embedding model
-    embed_model = llm_calling(model_name=model_name).call_embed_model()
+    #embed_model = llm_calling(model_name=model_name).call_embed_model()
+    embed_model = llm_calling().call_embed_model()
 
     # Only force recreate the collection if it hasn't been created before in this session
     force_recreate = False

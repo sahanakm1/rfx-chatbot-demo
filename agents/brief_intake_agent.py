@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple
 
 from langchain_community.vectorstores import Qdrant
 from langchain.chains import RetrievalQA
-from langchain_ollama import OllamaLLM
+#from langchain_ollama import OllamaLLM
 
 from agents.vector_store import get_cached_vector_store
 from agents.llm_calling import llm_calling
@@ -42,7 +42,8 @@ def run_brief_intake(
     if uploaded_texts:
         try:
             start = time.time()
-            embed_model = llm_calling(model_name="mistral").call_embed_model()
+#            embed_model = llm_calling(model_name="mistral").call_embed_model()
+            embed_model = llm_calling().call_embed_model()
             vectordb = get_cached_vector_store(
                 collection_name=collection_name, 
                 embeddings=embed_model, 
@@ -57,7 +58,9 @@ def run_brief_intake(
             log_callback("[STEP] Warming up LLM")
             start = time.time()
 
-            llm = OllamaLLM(model="mistral")
+#            llm = OllamaLLM(model="mistral")
+            # Calling gpt model
+            llm = llm_calling().call_llm()
             qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, chain_type="stuff")
 
             retrieval_context["retriever"] = retriever

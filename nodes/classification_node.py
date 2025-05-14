@@ -7,7 +7,7 @@ from agents.classification_agent import classify_rfx
 def classification_node(state):
     print("/n---classification node---")
 
-    user_input = state.get("user_input") or ""
+    user_input = state.get("user_input") or state.get("pending_response") or ""
 
     collection = state.get("collection_name", "")
     uploaded = state.get("uploaded_texts", [])
