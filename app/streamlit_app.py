@@ -58,6 +58,7 @@ should_continue = (
 while should_continue and run_count < MAX_RUNS:
     with st.spinner("🧠 Thinking..."):
         state = graph.invoke(state)
+        state["langgraph_ran"] = True  # ✅ Mark that LangGraph has run
         st.session_state.conversation_state = state
         run_count += 1
         should_continue = (

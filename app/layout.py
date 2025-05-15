@@ -8,6 +8,7 @@ import time
 import streamlit as st
 from ui_helpers import render_chat_history, render_download_button
 from state_handler import render_logs, handle_uploaded_files, is_vague_response, render_vague_response_options, log_event
+from prompts.brief_structure import SECTION_TITLES
 
 def render_left_panel(state):
     # Upload documents panel
@@ -32,11 +33,13 @@ def render_left_panel(state):
                 handle_uploaded_files(state, uploaded_files)
                 new_docs = state.get("uploaded_texts", [])[initial_count:]
                 if new_docs:
-                    names = ", ".join(doc["name"] for doc in new_docs)
+                    #names = ", ".join(doc["name"] for doc in new_docs)
+                    names = ", ".join(file.name for file in uploaded_files)
                     state["chat_history"].append({
                         "role": "assistant",
                         "content": f"📎 Document(s) uploaded successfully: {names}"
                     })
+                    state["next_action"] = "trigger_after_upload"
                     state["langgraph_ran"] = False
                     st.rerun()
 
@@ -158,15 +161,28 @@ def render_right_panel(state):
 
         st.markdown("<p style='font-size:14px; font-weight:600;'>📁 Generated Content</p>", unsafe_allow_html=True)
         if state.get("brief"):
-            for section, subs in state["brief"].items():
-                with st.expander(section):
+             for section, subs in state["brief"].items():
+                section_title = SECTION_TITLES.get(section, section)
+                with st.expander(section_title):
                     for subsec, content in subs.items():
                         answer = content.get("answer", "").strip()
-                        st.markdown(f"**{subsec}**")
+                        title = content.get("title", subsec)  # fallback to A.1 if title is missing
+                        st.markdown(f"**{title}**")
                         if answer and answer.upper() != "N/A":
                             st.markdown(answer)
                         else:
                             st.markdown("_No content yet._")
+            # for section, subs in state["brief"].items():
+            #     with st.expander(section):
+            #         for subsec, content in subs.items():
+            #             answer = content.get("answer", "").strip()
+            #             title = content.get("title", subsec)  # fallback to A.1 if title is missing
+            #             st.markdown(f"**{title}**")
+            #             if answer and answer.upper() != "N/A":
+            #                 st.markdown(answer)
+            #             else:
+            #                 st.markdown("_No content yet._")
+
         elif not state.get("document_generated"):
             st.markdown("<i>No sections generated yet.</i>", unsafe_allow_html=True)
 

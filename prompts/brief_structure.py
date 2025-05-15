@@ -53,3 +53,12 @@ REQUIRED_STRUCTURE = {
     },
     "E": {}  # Optional appendices
 }
+
+SECTION_TITLES = {
+    "A": "INTRODUCTION",
+    "B": "PURPOSE & TIMELINE",
+    "C": "PROJECT SCOPE",
+    "D": "PROPOSAL DETAILS",
+    "E": "APPENDICES",
+    "Z": "Geography"
+}

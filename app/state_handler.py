@@ -5,11 +5,12 @@
 import uuid
 import streamlit as st
 import os
+from docx import Document
+import pdfplumber
 
 from agents.document_ingestor import ingest_document
 
 def initialize_state():
-    # Initialize the default state for a conversation session
     return {
         "step": 0,
         "logs": [],
@@ -34,7 +35,6 @@ def initialize_state():
     }
 
 def set_background():
-    # Inject custom background and layout styles
     style = """
     <style>
     html, body, [data-testid="stAppViewContainer"], .main {
@@ -75,7 +75,6 @@ def set_background():
     st.markdown(style, unsafe_allow_html=True)
 
 def render_logs(state):
-    # Show a list of recorded log events, highlighting the latest
     if not state.get("logs"):
         return
 
@@ -93,12 +92,10 @@ def render_logs(state):
                 st.markdown(f"- {log}")
 
 def log_event(state, message):
-    # Add a log entry and move highlight to newest entry
     state["logs"].append(message)
     st.session_state.highlight_log_index = len(state["logs"]) - 1
 
 def render_chat_history(state):
-    # Render user and assistant messages in a styled format
     for msg in state.get("chat_history", []):
         role = msg.get("role", "assistant")
         content = msg.get("content", "")
@@ -119,7 +116,6 @@ def render_chat_history(state):
         """, unsafe_allow_html=True)
 
 def render_download_button(filepath):
-    # Render a download button if the document exists
     if not filepath or not os.path.exists(filepath):
         return
     with open(filepath, "rb") as f:
@@ -131,7 +127,6 @@ def render_download_button(filepath):
         )
 
 def render_section_content(state):
-    # Render all generated sections with non-empty answers
     if not state.get("section_content"):
         st.markdown("_No sections generated yet._")
         return
@@ -159,12 +154,10 @@ def render_section_content(state):
         render_download_button(state["document_path"])
 
 def is_vague_response(user_input):
-    # Detect vague or ambiguous responses from user
     vague_keywords = ["idk", "not sure", "n/a", "tbd", "don't know", "no idea"]
     return any(kw in user_input.lower() for kw in vague_keywords)
 
 def render_vague_response_options(state, user_input):
-    # Give user the option to refine or skip when vague answer is detected
     col1, col2 = st.columns(2)
     with col1:
         if st.button("✍️ Help me write it"):
@@ -176,10 +169,11 @@ def render_vague_response_options(state, user_input):
             state["pending_refine_request"] = "skip"
             st.rerun()
 
-def handle_uploaded_files(state, uploaded_files):
-    # Handle uploaded documents and extract their contents
-    import pdfplumber
+def extract_docx_text(uploaded_file):
+    doc = Document(uploaded_file)
+    return "\n".join([para.text for para in doc.paragraphs if para.text.strip()])
 
+def handle_uploaded_files(state, uploaded_files):
     if "uploaded_texts" not in state:
         state["uploaded_texts"] = []
 
@@ -195,10 +189,16 @@ def handle_uploaded_files(state, uploaded_files):
                     content = "\n\n".join(page.extract_text() or "" for page in pdf.pages)
             except Exception as e:
                 content = f"[Warning] Could not extract text from {uploaded_file.name}: {e}"
+
+        elif uploaded_file.name.lower().endswith(".docx"):
+            try:
+                content = extract_docx_text(uploaded_file)
+            except Exception as e:
+                content = f"[Warning] Could not extract text from {uploaded_file.name}: {e}"
+
         else:
             content = uploaded_file.read().decode("utf-8", errors="ignore")
 
-        #TODO: review this, Im not sure if this is the best place to do it
         collection = state.get("collection_name", "rfx_default")
         ingest_document(doc_id=uploaded_file.name, text=content, collection_name=collection)
 
@@ -210,3 +210,7 @@ def handle_uploaded_files(state, uploaded_files):
         log_msg = f"[Info] User document '{uploaded_file.name}' uploaded"
         if log_msg not in state["logs"]:
             log_event(state, log_msg)
+
+            # ✅ Trigger LangGraph after upload - without user chat
+            state["langgraph_ran"] = False
+            state["next_action"] = "trigger_after_upload"

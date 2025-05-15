@@ -10,6 +10,11 @@ def orchestrator_router(state):
     if state.get("next_action"):
         print(f"[router] ⚠️ Repeating next_action: {state['next_action']}")
 
+    if state.get("next_action") == "trigger_after_upload":
+        print("[router] ✅ Triggering flow after document upload")
+        state["next_action"] = ""
+        return "classification_agent"
+
     # Reset wait_after_classification if user replied
     if state.get("wait_after_classification") and state.get("user_input"):
         print("[router] ✅ User responded after classification, clearing wait")

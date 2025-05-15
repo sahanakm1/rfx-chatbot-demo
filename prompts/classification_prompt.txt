@@ -6,7 +6,7 @@ RFP (Request for Proposal) – Used when the requester needs complete solutions 
 Examples: detailed solutions, designing and managing, business problem descriptions, strategy requests, solution proposals.
 
 RFQ (Request for Quotation) – Used when the requester has clear, defined requirements and needs pricing.
-Examples: quotations, item lists, comparison of prices, specifications, quantities, deadlines, service terms, or price comparisons.
+Examples: quotations, pricing, item lists, comparison of prices, specifications, quantities, deadlines, service terms, or price comparisons.
 
 RFI (Request for Information)    – Used when the requester is exploring the market or seeking capability insights.
 Examples: learning or seeking information, vendor qualifications, capabilities, innovation examples, or general solution space exploration.
@@ -16,5 +16,6 @@ Content:
 <insert top chunk here>
 
 Instructions:
+
 Respond only with one of: RFP, RFQ, or RFI.
 After classifying, briefly confirm your choice with the user.

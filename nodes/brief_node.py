@@ -3,6 +3,8 @@
 
 from agents.brief_intake_agent import run_brief_intake, try_auto_answer_batch, retrieval_context, update_brief_with_user_response
 from agents.chat_agent import generate_question_for_section
+from prompts.brief_structure import SECTION_TITLES 
+
 
 def brief_node(state):
     print("\n---brief node---")
@@ -54,11 +56,24 @@ def brief_node(state):
         print("\t---brief node--- resolved answers: "+str(len(resolved)))
         print("\t---brief node--- unresolved answers: "+str(len(unresolved)))
 
+        
         for (section, sub), answer in resolved.items():
+            # Get the user-friendly titles
+            section_title = SECTION_TITLES.get(section, section)
+            
+            # Fetch the subsection title from state["brief"] if available
+            sub_title = state.get("brief", {}).get(section, {}).get(sub, {}).get("title", sub)
+
+            # Add concise message to chat
             state["chat_history"].append({
                 "role": "assistant",
-                "content": f"✅ Filled section **{section}.{sub}** from uploaded documents:\n\n{answer}"
+                "content": f"✅ Section **{section_title}.{sub_title}** is generated and ready for review"
             })
+
+            # state["chat_history"].append({
+            #     "role": "assistant",
+            #     "content": f"✅ Filled section **{section}.{sub}** from uploaded documents:\n\n{answer}"
+            # })
 
         if resolved:
             state["brief_updated"] = True
