@@ -2,25 +2,42 @@
 # Decides which agent/node to activate next based on current state.
 
 from agents.chat_agent import should_trigger_classification
+from agents.consistency_checker_agent import check_consistency
 
 def orchestrator_router(state):
     print("\n----[router]----")
+
+    user_input = state.get("user_input") or ""
+    print("[router]----user_input: " + user_input)
     
 
     if state.get("next_action"):
         print(f"[router] ⚠️ Repeating next_action: {state['next_action']}")
 
+    # Trigger after document upload
     if state.get("next_action") == "trigger_after_upload":
         print("[router] ✅ Triggering flow after document upload")
         state["next_action"] = ""
         return "classification_agent"
+    
+    # Trigger after document upload
+    if state.get("next_action") == "autorefinement_agent":
+        print("[router] answer from user not consistent - refinement agent")
+        state["next_action"] = ""
+        return "autorefinement_agent"
 
     # Reset wait_after_classification if user replied
     if state.get("wait_after_classification") and state.get("user_input"):
         print("[router] ✅ User responded after classification, clearing wait")
         state["wait_after_classification"] = False
 
-    # D. Explicit next action: ask the user a question
+    # Reset wait_after_classification_confirmation if user replied
+    if state.get("next_action") == "wait_after_classification_confirmation" and state.get("user_input"):
+        print("[router] ✅ User responded after classification and is ok, clearing wait ->> start brieft")
+        state["next_action"] = False
+        return "brief_intake_agent"
+
+    # Explicit next action: ask the user a question
     if state.get("next_action") == "ask_brief_question":
         #print(state)
         print("--------\n")
@@ -28,9 +45,7 @@ def orchestrator_router(state):
         print("[router] Asking brief question → chat_agent")
         return "brief_intake_agent" # return "chat_agent"
 
-    
-
-    # A. User replied to a pending brief question
+    # User replied to a pending brief question
     if (
         state.get("user_input")
         and state.get("pending_question")
@@ -38,9 +53,9 @@ def orchestrator_router(state):
     ):
         print(state)
         print("--------\n")
-        print("[router] User replied to a pending brief question → brief_intake_agent")
-        return "brief_intake_agent"
-    
+        
+        print("[router] User replied to a pending question → consistency_checker_agent")
+        return "consistency_checker_agent"
 
     # B. LLM-driven readiness → classification
     if not state.get("rfx_type") and should_trigger_classification(state):

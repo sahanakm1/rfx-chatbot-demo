@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 .env
+.sqlite
 *.pyc
 .DS_Store
 poppler-24.08.0

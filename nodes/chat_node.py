@@ -56,8 +56,8 @@ def chat_node(state):
                 "role": "assistant",
                 "content": f"Thanks! I've updated this to a **{state['rfx_type']}**. Let me guide you through generating the brief, section by section — the generated content will appear in the right panel for your review."
             })
-            state["next_action"] = "start_brieft"
-            state["user_input"] = None
+            state["next_action"] = "wait_after_classification_confirmation"
+            #state["user_input"] = None
             return state
 
         # ✅ Handle confirmation after classification
@@ -73,7 +73,7 @@ def chat_node(state):
                     "role": "assistant",
                     "content": "Thanks for confirming! Let me guide you through generating the brief, section by section — the generated content will appear in the right panel for your review. "
                 })
-                state["next_action"] = "start_brieft"
+                state["next_action"] = "wait_after_classification_confirmation"
                 state["user_input"] = None
                 return state
 

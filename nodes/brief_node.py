@@ -36,6 +36,8 @@ def brief_node(state):
         state["disclaimer"] = disclaimer
         state["pending_question"] = pending
         state["user_input"] = None
+        state["next_action"] = "ask_brief_question"  
+        return state
 
     # Step 2: If the user just answered a pending question, record it
     elif state.get("pending_question") and user_input:
@@ -86,7 +88,7 @@ def brief_node(state):
 
         # Ask user about the first unresolved if there’s none pending yet
         if unresolved:
-            section, sub = unresolved[0]
+            section, sub = state["missing_sections"][0]
             question = state["brief"][section][sub]["question"]
             state["pending_question"] = {"section": section, "sub": sub, "question": question, "asked": False}
             state["next_action"] = "ask_user_brief_question"

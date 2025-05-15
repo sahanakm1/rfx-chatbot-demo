@@ -62,7 +62,7 @@ def chat_node(state):
                     "role": "assistant",
                     "content": "Thanks for confirming! Let me guide you through generating the brief, section by section..."
                 })
-                state["next_action"] = "start_brieft"
+                state["next_action"] = "wait_after_classification"   # wait another cicle to do not take into account the next user input
                 state["user_input"] = None
                 return state
 
@@ -72,12 +72,12 @@ def chat_node(state):
                     "role": "assistant",
                     "content": """No problem! Here's a quick reference to help you decide:
 
-        - **RFP** – Request for Proposal: when you're looking for full solutions or custom proposals  
-        - **RFQ** – Request for Quotation: when you're asking for pricing or cost estimates  
-        - **RFI** – Request for Information: when you're exploring options or vendor capabilities
+                        - **RFP** – Request for Proposal: when you're looking for full solutions or custom proposals  
+                        - **RFQ** – Request for Quotation: when you're asking for pricing or cost estimates  
+                        - **RFI** – Request for Information: when you're exploring options or vendor capabilities
 
-        Which one sounds most relevant for your request?"""
-                })
+                        Which one sounds most relevant for your request?"""
+                                })
                 state["next_action"] = "wait_user_rfx_type"
                 state["user_input"] = None
                 return state

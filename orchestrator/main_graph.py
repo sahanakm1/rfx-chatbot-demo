@@ -4,6 +4,8 @@
 from typing import Dict, Any
 from langgraph.graph import StateGraph
 
+from nodes.consistency_checker_node import consistency_checker_node
+from nodes.autorefine_node import autorefinement_agent_node
 from nodes.chat_node import chat_node
 from nodes.classification_node import classification_node
 from nodes.brief_node import brief_node
@@ -19,19 +21,23 @@ def orchestrator_node(state):
 def build_graph():
     graph = StateGraph(Dict[str, Any])
 
-    # Register agent nodes
+    # Register all nodes
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("chat_agent", chat_node)
     graph.add_node("classification_agent", classification_node)
     graph.add_node("brief_intake_agent", brief_node)
     graph.add_node("draft_generator", draft_node)
+    graph.add_node("consistency_checker_agent", consistency_checker_node)
+    graph.add_node("autorefinement_agent", autorefinement_agent_node)
 
-    # Add routing logic: dynamically determine the next node from state
+    # Routing logic
     graph.add_conditional_edges("orchestrator", orchestrator_router, {
         "chat_agent": "chat_agent",
         "classification_agent": "classification_agent",
         "brief_intake_agent": "brief_intake_agent",
         "draft_generator": "draft_generator",
+        "consistency_checker_agent": "consistency_checker_agent",
+        "autorefinement_agent": "autorefinement_agent",
         "end": "__end__",
     })
 
