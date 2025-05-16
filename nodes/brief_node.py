@@ -37,6 +37,7 @@ def brief_node(state):
 
     # Step 2: Save user response to pending question
     if state.get("pending_question") and user_input:
+        print("\t---brief node--- processing user response to pending question")
         update_brief_with_user_response(state, user_input)
         state["brief_updated"] = True
         state["user_input"] = None
@@ -44,10 +45,16 @@ def brief_node(state):
     # Step 3: Try answering next batch of sections
     unresolved_set = set(state.get("unanswerable_sections", []))
     remaining = sorted([pair for pair in state.get("missing_sections", []) if pair not in unresolved_set])
+    print("\t---brief node--- unresolved_set: "+str(len(unresolved_set)))
+    print("\t---brief node--- remaining: "+str(len(remaining)))
+    print(f"\t---brief node--- pending_question: {state.get('pending_question')}")
 
-    if remaining:
+    if remaining and state['next_action'] != "start_brieft":
         batch = remaining[:3]
+        print("\t---brief node--- try auto answer batch mode")
         resolved, unresolved = try_auto_answer_batch(state, batch)
+        print("\t---brief node--- resolved answers: "+str(len(resolved)))
+        print("\t---brief node--- unresolved answers: "+str(len(unresolved)))
 
         for (section, sub), answer in resolved.items():
             section_title = SECTION_TITLES.get(section, section)
@@ -56,6 +63,8 @@ def brief_node(state):
                 "role": "assistant",
                 "content": f"✅ Section **{section_title}.{sub_title}** is generated and ready for review"
             })
+
+        if resolved:
             state["brief_updated"] = True
 
         state["missing_sections"] = [pair for pair in state["missing_sections"] if pair not in resolved]
@@ -63,21 +72,39 @@ def brief_node(state):
 
         # Step 4: Set next manual question if unresolved remains
         if unresolved:
-            section, sub = unresolved[0]
+            print("\t---brief node--- unresolved questions -> ask_user_brief_question")
+            section, sub = state["missing_sections"][0]
             question = state["brief"][section][sub]["question"]
             state["pending_question"] = {"section": section, "sub": sub, "question": question, "asked": False}
             state["next_action"] = "ask_user_brief_question"
-        # Step 5: If all done, proceed to generate document
-        elif not state["missing_sections"]:
-            state["pending_question"] = None
-            state["next_action"] = "draft_generator"
         else:
+            print("\t---brief node--- missing sections -> ask_brief_question")
             state["pending_question"] = None
             state["next_action"] = "ask_brief_question"
+        
+        # Step 5: If all done, proceed to generate document
+        if not state["missing_sections"]:
+            print("\t---brief node--- no more missing sections -> draft_generator")
+            state["pending_question"] = None
+            state["next_action"] = "draft_generator"
+        
 
     # Final check: if all answered and brief exists, go to draft
     elif not state.get("missing_sections") and state.get("brief"):
+        print("\t---brief node--- no more missing sections -> draft_generator")
         state["pending_question"] = None
         state["next_action"] = "draft_generator"
+    else:
+        print("\t---brief node--- no remaining (to be answered by the model) but missing sections")
+
+        if state.get("missing_sections"):
+            section, sub = state["missing_sections"][0]
+            question = state["brief"][section][sub]["question"]
+            state["pending_question"] = {"section": section, "sub": sub, "question": question, "asked": False}
+            state["next_action"] = "ask_user_brief_question"
+        else:
+            state["pending_question"] = None
+            state["next_action"] = "draft_generator"
+            print("\t---brief node--- fallback complete → draft_generator")
 
     return state
