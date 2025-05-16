@@ -25,6 +25,7 @@ def draft_node(state):
         path = build_doc_from_json(formatted)
         state["document_path"] = path
         state["document_generated"] = True
+        state["brief_updated"] = True
     except Exception as e:
         state.setdefault("logs", []).append(f"[Error] Document generation failed: {e}")
         state["document_path"] = ""

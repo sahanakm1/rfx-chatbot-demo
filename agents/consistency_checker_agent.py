@@ -14,13 +14,28 @@ def check_consistency(state):
     question = pending.get("question", "")
 
     prompt = f"""
-            You are verifying the consistency and relevance of a user's response.
+        #     You are verifying the consistency and relevance of a user's response.
 
-            Given the previous conversation context and a question, determine if the user's most recent answer:
-            1. Clearly relates to the question.
-            2. Makes sense given the previous history.
+        #     Given the previous conversation context and a question, determine if the user's most recent answer:
+        #     1. Clearly relates to the question.
+        #     2. Makes sense given the previous history.
 
-            Return only YES or NO.
+        #     Return only YES or NO.
+
+        You are verifying if a user's answer is acceptable for a given question in the context of an RFx brief.
+
+        Say **YES** if:
+        - The response is somewhat relevant to the question
+        - It contains some infomation
+        - It sounds like a reasonable attempt to answer (even if not perfect)
+
+        Say **NO** only if:
+        - The answer is completely unrelated
+        - Or it clearly misunderstands the question
+        - Or it is empty, vague, or irrelevant
+
+        Return only YES or NO.
+
 
             Context:
             {context}

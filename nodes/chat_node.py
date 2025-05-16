@@ -1,5 +1,6 @@
 from agents.brief_intake_agent import update_brief_with_user_response
 from agents.chat_agent import append_rfx_comment, generate_question_for_section, handle_conversation
+from agents.llm_calling import llm_calling
 
 def chat_node(state):
     print("---chat node---")
@@ -8,6 +9,13 @@ def chat_node(state):
 
     print("User input:", user_input)
     print("Next action:", state.get("next_action"),"")
+
+    vague_responses = [
+        "not sure", "maybe", "i don’t know", "idk", "unclear",
+        "confused", "need help", "could be", "need more info", "explain"
+    ]
+
+    llm = llm_calling().call_llm()
 
     # 1. Reformulate and ask the pending question
     if state.get("pending_question") and not state["pending_question"].get("asked"):
@@ -34,7 +42,6 @@ def chat_node(state):
     if user_input and (not state.get("pending_question") or not state["pending_question"].get("asked")):
         print("\t---chat node---normal message")
 
-        # ✅ If user is clarifying request type manually
         if state.get("next_action") == "wait_user_rfx_type":
             user_reply = user_input.lower()
 
@@ -44,6 +51,17 @@ def chat_node(state):
                 state["rfx_type"] = "RFQ"
             elif "rfi" in user_reply:
                 state["rfx_type"] = "RFI"
+            elif any(v in user_reply for v in vague_responses):
+                clarification_prompt = f"""
+                The user is still unsure after reading the earlier explanation.
+                Please re-explain the differences between RFI, RFQ, and RFP briefly (3–4 lines max),
+                but give relatable examples or context this time.
+                End with a single follow-up question asking which they'd like to proceed with.
+                """
+                response = llm.invoke([{"role": "user", "content": clarification_prompt}])
+                state["chat_history"].append({"role": "assistant", "content": response.content.strip()})
+                state["user_input"] = None
+                return state
             else:
                 state["chat_history"].append({
                     "role": "assistant",
@@ -57,16 +75,12 @@ def chat_node(state):
                 "content": f"Thanks! I've updated this to a **{state['rfx_type']}**. Let me guide you through generating the brief, section by section — the generated content will appear in the right panel for your review."
             })
             state["next_action"] = "wait_after_classification_confirmation"
-            #state["user_input"] = None
             return state
 
-        # ✅ Handle confirmation after classification
         if state.get("next_action") == "wait_after_classification":
             user_reply = user_input.lower()
             positive_responses = ["yes", "sure", "ok", "go ahead", "continue", "proceed", "sounds good", "help with rfx"]
             negative_responses = ["no", "not really", "change", "different", "wrong", "don’t think"]
-            vague_responses = ["not sure", "maybe", "i don’t know", "idk", "unclear", "confused", "need help", "could be"]
-
             if any(p in user_reply for p in positive_responses):
                 print("\t---chat node---positive confirmation -> start brief")
                 state["chat_history"].append({
@@ -76,19 +90,19 @@ def chat_node(state):
                 state["next_action"] = "wait_after_classification_confirmation"
                 state["user_input"] = None
                 return state
-
             elif any(n in user_reply for n in negative_responses + vague_responses):
-                print("\t---chat node---user rejected or unsure → provide guidance")
-                state["chat_history"].append({
-                    "role": "assistant",
-                    "content": """No problem! Here's a quick reference to help you decide:
+                print("\t---chat node---user rejected or unsure → provide LLM clarification")
+                clarification_prompt = f"""
+                The assistant previously classified this request as {state.get("rfx_type", "Unknown")},
+                but the user disagreed or was unsure. Now explain the three types of RFx (RFP, RFQ, RFI)
+                in a friendly, helpful way.
+                If user is unsure or gives vague responses, then explain the request types further.
+                Ask the user which one they’d prefer to proceed with.
 
-- **RFP** – Request for Proposal: when you're looking for full solutions or custom proposals  
-- **RFQ** – Request for Quotation: when you're asking for pricing or cost estimates  
-- **RFI** – Request for Information: when you're exploring options or vendor capabilities
-
-Which one sounds most relevant for your request?"""
-                })
+                Keep it concise (3-5 lines) and natural.
+                """
+                response = llm.invoke([{"role": "user", "content": clarification_prompt}])
+                state["chat_history"].append({"role": "assistant", "content": response.content.strip()})
                 state["next_action"] = "wait_user_rfx_type"
                 state["user_input"] = None
                 return state

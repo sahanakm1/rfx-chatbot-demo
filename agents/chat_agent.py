@@ -106,7 +106,7 @@ def append_rfx_comment(state, context):
 
             Generate a short, helpful sentence to naturally inform the user of this classification.
             Make it sound helpful and conversational. For example:
-            - "By the way, this seems to be an RFI."
+            - "This request seems to be an RFI. Do you want help drafting it"
             - "It looks like you're dealing with an RFP. Want help drafting it?"
             ---
 
