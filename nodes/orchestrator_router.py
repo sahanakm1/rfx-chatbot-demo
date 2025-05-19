@@ -107,7 +107,7 @@ def orchestrator_router(state):
         return "chat_agent"
 
     # F. Document ready to be drafted
-    if state.get("brief") and not state.get("document_generated"):
+    if state.get("brief") and not state.get("document_generated")and not state.get("pending_question"):
        print("[router] Ready to draft document → draft_generator")
        return "draft_generator"
 

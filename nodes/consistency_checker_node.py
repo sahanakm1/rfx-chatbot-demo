@@ -14,6 +14,10 @@ def consistency_checker_node(state):
     if result == "YES":
         state["consistency_check_result"] = "YES"
         state["next_action"] = "ask_brief_question"  # Go to next question
+    if result == "SKIP":
+        state["consistency_check_result"] = "SKIP"
+        state["user_input"] = "[Not answered by the user]"
+        state["next_action"] = "ask_brief_question"  # Go to next question
     elif result == "REFINE":
         state["consistency_check_result"] = "REFINE"
         state["next_action"] = "autorefinement_agent"  # Refine this response

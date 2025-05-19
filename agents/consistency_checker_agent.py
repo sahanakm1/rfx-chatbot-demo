@@ -15,27 +15,33 @@ def check_consistency(state):
     prompt = f"""
             You are verifying the quality of a user's answer to a question as part of completing an RFx brief.
 
-            Your job is to classify the answer into one of **three** categories:
+            Your job is to classify the answer into one of **four** categories:
 
-            🔹 **YES** → The answer is valid, clear, and appropriate.
-            🔹 **REFINE** → The answer is generally correct or on-topic, but could be improved (e.g., more complete, structured, or clearer).
-            🔹 **NO** → The answer is irrelevant, incorrect, vague, or does not answer the question at all.
+                **SKIP** → The user explicitly chose not to answer the question, indicated they do not know the answer, or used a phrase like "skip", "not sure", or "I'd rather not answer".
+                **YES** → The answer is valid, clear, and appropriate.
+                **REFINE** → The answer is generally correct or on-topic, but could be improved (e.g., more complete, structured, or clearer).
+                **NO** → The answer is irrelevant, incorrect, vague, or does not answer the question at all.
 
             Use this guidance:
 
-            ✅ Say **YES** if:
+            Say **SKIP** if:
+            - The user explicitly declined to answer.
+            - The user said something like: "skip", "I don't know", "not sure", "I'd rather not answer", or similar.
+
+            Say **YES** if:
             - The answer clearly addresses the question and makes sense in context.
             - It is usable as-is, even if not perfect.
 
-            🟡 Say **REFINE** if:
+            Say **REFINE** if:
             - The answer is relevant but could benefit from improved structure, completeness, tone, or clarity.
             - It seems rushed, informal, too brief, or slightly off in focus.
 
-            ❌ Say **NO** if:
+            Say **NO** if:
             - The answer does not relate to the question.
             - It is too vague, completely off-topic, or clearly misunderstood.
 
-            Return only one of these: **YES**, **REFINE**, or **NO**.
+            IMPORTANT: Return only one word from this list, and nothing else:
+            **SKIP**, **YES**, **REFINE**, or **NO**
 
             ---
 
@@ -56,5 +62,7 @@ def check_consistency(state):
         return "YES"
     elif "REFINE" in response:
         return "REFINE"
+    elif "SKIP" in response:
+        return "SKIP"
     else:
         return "NO"
