@@ -41,6 +41,7 @@ def draft_node(state):
         state["document_path"] = path
         state["document_generated"] = True
         state["brief_updated"] = True
+        state["next_action"] = ""
         
         state["chat_history"].append({
             "role": "assistant",

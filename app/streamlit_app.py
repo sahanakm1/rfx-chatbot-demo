@@ -56,17 +56,17 @@ should_continue = (
 )
 
 while should_continue and run_count < MAX_RUNS:
-    with st.spinner("🧠 Thinking..."):
-        state = graph.invoke(state)
-        state["langgraph_ran"] = True  # ✅ Mark that LangGraph has run
-        st.session_state.conversation_state = state
-        run_count += 1
-        should_continue = (
-            state.get("user_input") or
-            state.get("next_action") or
-            state.get("pending_question") or
-            state.get("intent")
-        )
+    #with st.spinner("🧠 Thinking..."):
+    state = graph.invoke(state)
+    state["langgraph_ran"] = True  # ✅ Mark that LangGraph has run
+    st.session_state.conversation_state = state
+    run_count += 1
+    should_continue = (
+        state.get("user_input") or
+        state.get("next_action") or
+        state.get("pending_question") or
+        state.get("intent")
+    )
 
 # Render the UI layout (three panels)
 st.markdown("<h1 style='text-align: center;'>RFx AI Builder Assistant</h1><hr>", unsafe_allow_html=True)

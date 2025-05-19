@@ -52,7 +52,7 @@ def run_brief_intake(
             )
 
             retriever = vectordb.as_retriever()
-            retriever.search_kwargs["k"] = 3
+            retriever.search_kwargs["k"] = 5
 
             log_callback(f"[TIMING] Embedding + vectorstore creation took {round((time.time() - start)/60, 2)} min")
 

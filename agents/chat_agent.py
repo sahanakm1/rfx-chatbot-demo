@@ -101,18 +101,23 @@ def generate_question_for_section(section_key) -> str:
 def append_rfx_comment(state, context):
     rfx_type = state.get("rfx_type", "unspecified")
     prompt = f"""
-            You are an assistant helping a user respond to RFx requests.
-            The user hasn't asked directly about the RFx type, but you (the assistant) know it has been classified as: {rfx_type}.
+                You are an assistant helping a user respond to RFx requests.
+                The user hasn't explicitly asked about the RFx type, but you (the assistant) have inferred it based on the conversation and uploaded documents. 
+                The RFx has been classified as: {rfx_type}.
 
-            Generate a short, helpful sentence to naturally inform the user of this classification.
-            Make it sound helpful and conversational. For example:
-            - "This request seems to be an RFI. Do you want help drafting it"
-            - "It looks like you're dealing with an RFP. Want help drafting it?"
-            ---
+                Write a short, friendly message to inform the user, for example:
+                - That you've used their input and uploaded content to determine the RFx type.
+                - Clearly state the detected type (e.g., RFP, RFI, or RFQ).
+                - Offer to help them begin drafting the response now that the classification is complete.
 
-            Previous message from assistant (if any): 
-            {context}
-            """
+                Make it natural and helpful. Example tone:
+                - "Based on what you've shared, this looks like an RFI. I can help you start drafting it if you’re ready."
+                - "Thanks! I've reviewed your input and it seems you're working on an RFP. Want help drafting the response?"
+                ---
+
+                Previous assistant message (for reference): 
+                {context}
+                """
 
     response = llm.invoke([HumanMessage(content=prompt)])
     content = response.content if hasattr(response, "content") else str(response)

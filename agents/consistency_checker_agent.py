@@ -20,7 +20,7 @@ def check_consistency(state):
                 **SKIP** → The user explicitly chose not to answer the question, indicated they do not know the answer, or used a phrase like "skip", "not sure", or "I'd rather not answer".
                 **YES** → The answer is valid, clear, and appropriate.
                 **REFINE** → The answer is generally correct or on-topic, but could be improved (e.g., more complete, structured, or clearer).
-                **NO** → The answer is irrelevant, incorrect, vague, or does not answer the question at all.
+                **NO** → The answer is irrelevant, incorrect, or does not answer the question at all.
 
             Use this guidance:
 
@@ -38,7 +38,6 @@ def check_consistency(state):
 
             Say **NO** if:
             - The answer does not relate to the question.
-            - It is too vague, completely off-topic, or clearly misunderstood.
 
             IMPORTANT: Return only one word from this list, and nothing else:
             **SKIP**, **YES**, **REFINE**, or **NO**
@@ -57,6 +56,8 @@ def check_consistency(state):
 
     result = llm.invoke([HumanMessage(content=prompt)])
     response = result.content.strip().upper()
+
+    print()
 
     if "YES" in response:
         return "YES"

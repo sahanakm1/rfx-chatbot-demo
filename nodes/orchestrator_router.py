@@ -96,8 +96,20 @@ def orchestrator_router(state):
         print("[router] Generating initial brief → brief_intake_agent")
         return "brief_intake_agent"
     
-    # G. Default: route to chat_agent as fallback
-    elif (state.get("user_input") or state.get("next_action") == "wait_after_classification") and not state.get("pending_question"):
+    
+    # Brief is completed but maybe need to be reviewed
+    if state.get("brief") and not state.get("pending_question") and not state.get("document_generated") and not state.get("finish_review"):
+        if not state.get("review_phase_started"):
+            print("[router] Brief complete → starting review phase")
+            state["review_phase_started"] = True
+            state["next_action"] = "review_feedback_phase"
+            return "review_agent"
+        else:
+            print("[router] Review phase already completed → draft_generator")
+            return "draft_generator"
+        
+    # Default: route to chat_agent as fallback
+    if (state.get("user_input") or state.get("next_action") == "wait_after_classification") and not state.get("pending_question") and not state.get("next_action") == "review_feedback_phase":
         print(state)
         print("--------\n")
         print("[router] General message → chat_agent")
@@ -105,11 +117,18 @@ def orchestrator_router(state):
             print("\t----router: next action wait")
             state["next_action"] = ""
         return "chat_agent"
+    
 
-    # F. Document ready to be drafted
-    if state.get("brief") and not state.get("document_generated")and not state.get("pending_question"):
+    # Document ready to be drafted
+    if state.get("next_action") == "draft_generator" or (state.get("brief") and not state.get("document_generated") and not state.get("pending_question")):
        print("[router] Ready to draft document → draft_generator")
+       state["next_action"] = ""
        return "draft_generator"
+    
+    
+    
+    
+    
 
     
 
