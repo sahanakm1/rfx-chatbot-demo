@@ -1,5 +1,4 @@
 import os
-import json
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -11,7 +10,7 @@ TOC = {
     "B. PURPOSE OF THE RFP": ["B.1 Responses", "B.2 Schedule", "B.3 Queries", "B.4 Evaluation Criteria"],
     "C. CONTEXT": ["C.1 Project Scope and Objective", "C.2 JTI Requirements", "C.3 Proposal evaluation criteria"],
     "D. RESPONSE": ["D.1 Executive Summary", "D.2 Additional proposal details"],
-    "E. APPENDICES": []
+    "E. APPENDICES": ["E.1 Supporting Documents"]
 }
 
 def add_heading(doc, text, level):
@@ -24,7 +23,6 @@ def add_paragraph(doc, text):
     return p
 
 def insert_toc(paragraph):
-    """Insert a field code for TOC that Word will convert into a clickable TOC"""
     fldChar1 = OxmlElement('w:fldChar')
     fldChar1.set(qn('w:fldCharType'), 'begin')
     instrText = OxmlElement('w:instrText')
@@ -43,31 +41,34 @@ def insert_toc(paragraph):
 def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx"):
     doc = Document()
     doc.add_heading("Generated Proposal", level=0)
-    
-    # Insert TOC Placeholder
+
+    # Insert TOC placeholder
     toc_paragraph = doc.add_paragraph()
     insert_toc(toc_paragraph)
     doc.add_paragraph("")
-    
+
     for section_title, subsections in TOC.items():
         section_key = section_title.split(".")[0]
         add_heading(doc, section_title, level=1)
+
         if subsections:
             for subsection in subsections:
-                subsection_key = subsection.split()[0]
+                subsection_key = subsection.split()[0]  # e.g., "E.1"
                 heading_text = subsection
                 content = data_json.get(section_key, {}).get(subsection_key, "(No content provided)")
                 add_heading(doc, heading_text, level=2)
                 add_paragraph(doc, content)
         else:
-            content = data_json.get(section_key, "(No content provided)")
-            add_paragraph(doc, content)
-    
-    # ✅ Create output directory if it doesn't exist
+            section_content = data_json.get(section_key, "(No content provided)")
+            if isinstance(section_content, dict):
+                for sub, val in section_content.items():
+                    add_heading(doc, sub, level=2)
+                    add_paragraph(doc, val)
+            else:
+                add_paragraph(doc, section_content)
+
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
     doc.save(output_path)
     print(f"Document saved as {output_path}")
     print("Open the document in Word and press F9 to update the TOC!")
-    
     return output_path

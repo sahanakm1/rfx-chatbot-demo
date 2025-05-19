@@ -157,11 +157,10 @@ def render_right_panel(state):
             st.rerun()
 
         st.markdown("### Brief Data")
-        #st.json(state.get("brief", {}))
 
         st.markdown("<p style='font-size:14px; font-weight:600;'>📁 Generated Content</p>", unsafe_allow_html=True)
         if state.get("brief"):
-             for section, subs in state["brief"].items():
+            for section, subs in state["brief"].items():
                 section_title = SECTION_TITLES.get(section, section)
                 with st.expander(section_title):
                     for subsec, content in subs.items():
@@ -172,21 +171,31 @@ def render_right_panel(state):
                             st.markdown(answer)
                         else:
                             st.markdown("_No content yet._")
-            # for section, subs in state["brief"].items():
-            #     with st.expander(section):
-            #         for subsec, content in subs.items():
-            #             answer = content.get("answer", "").strip()
-            #             title = content.get("title", subsec)  # fallback to A.1 if title is missing
-            #             st.markdown(f"**{title}**")
-            #             if answer and answer.upper() != "N/A":
-            #                 st.markdown(answer)
-            #             else:
-            #                 st.markdown("_No content yet._")
 
         elif not state.get("document_generated"):
             st.markdown("<i>No sections generated yet.</i>", unsafe_allow_html=True)
 
-        if state.get("document_generated") and state.get("document_path"):
-            render_download_button(state["document_path"])
+        # ✅ Show download buttons if doc is ready
+        if state.get("document_generated"):
+            if state.get("document_path"):
+                render_download_button(state["document_path"])
+
+            # 📦 Show ZIP button if available
+            if state.get("zip_path") and os.path.exists(state["zip_path"]):
+                with open(state["zip_path"], "rb") as f:
+                    st.download_button(
+                        label="📦 Download Full RFx Package (ZIP)",
+                        data=f,
+                        file_name="Final_RFx_Package.zip",
+                        mime="application/zip"
+                    )
+
+                # 🧾 Optional: list appendix file names below ZIP
+                appendix_files = state.get("appendix_files", [])
+                if appendix_files:
+                    st.markdown("<p style='font-size:13px; margin-top:1rem;'>📎 Files added to ZIP:</p>", unsafe_allow_html=True)
+                    for file in appendix_files:
+                        st.markdown(f"- {file['name']}")
 
     st.markdown("<hr style='border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
+

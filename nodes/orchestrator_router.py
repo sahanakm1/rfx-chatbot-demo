@@ -18,6 +18,13 @@ def orchestrator_router(state):
     if state.get("next_action") == "trigger_after_upload":
         print("[router] ✅ Triggering flow after document upload")
         state["next_action"] = ""
+
+        # 🔁 Route based on document stage (For zipping files)
+        if state.get("document_generated") and state.get("upload_stage") == "final":
+            print("[router] ⏭ Skipping classification — in final upload stage")
+            print("[router] --> Detected appendix upload → Go to draft_generator to build ZIP")
+            return "draft_generator"
+
         return "classification_agent"
     
     # Trigger after document upload

@@ -176,9 +176,35 @@ def extract_docx_text(uploaded_file):
 def handle_uploaded_files(state, uploaded_files):
     if "uploaded_texts" not in state:
         state["uploaded_texts"] = []
+    if "appendix_files" not in state:
+        state["appendix_files"] = []
 
+    upload_stage = state.get("upload_stage", "initial")
     filenames_seen = {doc["name"] for doc in state["uploaded_texts"]}
+    appendix_seen = {doc["name"] for doc in state["appendix_files"]}
 
+    if upload_stage == "final":
+        new_files = 0
+        for uploaded_file in uploaded_files:
+            if uploaded_file.name in appendix_seen:
+                continue  # ✅ Skip duplicates
+
+            #content_bytes = uploaded_file.read()
+            content_bytes = uploaded_file.getvalue()
+            state["appendix_files"].append({
+                "name": uploaded_file.name,
+                "data": content_bytes
+            })
+
+            log_event(state, f"[Final Upload] Stored appendix file: {uploaded_file.name}")
+            new_files += 1
+
+        if new_files > 0:
+            state["langgraph_ran"] = False
+            state["next_action"] = "trigger_after_upload"
+        return  # 🔥 Skip ingestion and Qdrant
+
+    # ✅ For initial/mid-stage classification
     for uploaded_file in uploaded_files:
         if uploaded_file.name in filenames_seen:
             continue
@@ -211,6 +237,4 @@ def handle_uploaded_files(state, uploaded_files):
         if log_msg not in state["logs"]:
             log_event(state, log_msg)
 
-            # ✅ Trigger LangGraph after upload - without user chat
-            state["langgraph_ran"] = False
-            state["next_action"] = "trigger_after_upload"
+    # 🔁 Do NOT trigger classification rerun unnecessarily
