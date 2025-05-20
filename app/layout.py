@@ -76,7 +76,24 @@ def render_left_panel(state):
                             "role": "assistant",
                             "content": f"📎 Document(s) uploaded successfully: {file_names}"
                         })
-                        state["next_action"] = "trigger_after_upload"
+
+                        # If there is a pending question, retry it with the new document
+                        if state.get("pending_question"):
+                            section_pair = (state["pending_question"]["section"], state["pending_question"]["sub"])
+                            
+                            # Remove it from unanswerable_sections so the RAG model can try again
+                            if section_pair in state.get("unanswerable_sections", []):
+                                state["unanswerable_sections"] = [
+                                    pair for pair in state["unanswerable_sections"] if pair != section_pair
+                                ]
+                            
+                            # Mark the question as not asked, so it gets reprocessed
+                            state["pending_question"]["asked"] = False
+                            state["next_action"] = "ask_brief_question"
+                            log_event(state, "[Action] layout - trigger pending question with new document")
+                        else:
+                            state["next_action"] = "trigger_after_upload"
+
                         state["langgraph_ran"] = False
                         st.rerun()
                 else:

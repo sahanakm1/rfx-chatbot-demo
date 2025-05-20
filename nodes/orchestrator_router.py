@@ -15,7 +15,7 @@ def orchestrator_router(state):
         print(f"[router] ⚠️ Repeating next_action: {state['next_action']}")
 
     # Trigger after document upload
-    if state.get("next_action") == "trigger_after_upload":
+    if state.get("next_action") == "trigger_after_upload" :
         print("[router] ✅ Triggering flow after document upload")
         state["next_action"] = ""
         return "classification_agent"

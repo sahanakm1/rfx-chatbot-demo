@@ -220,6 +220,12 @@ def handle_uploaded_files(state, uploaded_files):
         if log_msg not in state["logs"]:
             log_event(state, log_msg)
 
-            # ✅ Trigger LangGraph after upload - without user chat
+            # triger again the question after upload
+            if state.get("pending_question"):
+                state["pending_question"]["asked"] = False
+                state["next_action"] = "ask_brief_question"
+                log_event(state, "[Action] state_handler -trigger pending question with new document")
+            else:
+                state["next_action"] = "trigger_after_upload"
+
             state["langgraph_ran"] = False
-            state["next_action"] = "trigger_after_upload"

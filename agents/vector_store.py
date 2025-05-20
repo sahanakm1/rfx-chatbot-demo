@@ -4,6 +4,12 @@ from langchain_qdrant import QdrantVectorStore, RetrievalMode
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 from langchain.embeddings.base import Embeddings
+from functools import lru_cache
+
+@lru_cache(maxsize=1)
+def get_qdrant_local_client(path: str = "./qdrant_store"):
+    from qdrant_client import QdrantClient
+    return QdrantClient(path=path)
 
 # Class to encapsulate vector store logic
 class vector_store:
@@ -14,7 +20,8 @@ class vector_store:
 
     # Create or retrieve a Qdrant vector store with dense embeddings
     def vector_qdrant_dense(self, create_if_not_exists=True, force_recreate=True) -> QdrantVectorStore:
-        client = QdrantClient(path=self.path)
+        from .vector_store import get_qdrant_local_client
+        client = get_qdrant_local_client(path=self.path)
 
         # Force recreate the collection (for clean rebuilds)
         if force_recreate:
