@@ -85,7 +85,12 @@ def chat_node(state):
                 print("\t---chat node---positive confirmation -> start brief")
                 state["chat_history"].append({
                     "role": "assistant",
-                    "content": "Thanks for confirming! Let me guide you through generating the brief, section by section — the generated content will appear in the right panel for your review. "
+                    "content": """**Thank you for confirming.**  
+                                    <br> 
+                                    The `Brief Intake Agent` will auto-complete sections where information is available.  
+                                    For the rest, we'll guide you with questions and refine your input as needed. 
+                                    <br>  
+                                    🗂️ You can review all generated content in the **right-hand panel**."""
                 })
                 state["next_action"] = "wait_after_classification_confirmation"
                 state["user_input"] = None

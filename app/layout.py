@@ -5,6 +5,7 @@
 import sys
 import os
 import time
+import markdown
 import streamlit as st
 from ui_helpers import render_chat_history, render_download_button_for_zip, render_download_button_for_docx
 from state_handler import render_logs, handle_uploaded_files, is_vague_response, render_vague_response_options, log_event
@@ -79,15 +80,14 @@ def render_left_panel(state):
 
                         # If there is a pending question, retry it with the new document
                         if state.get("pending_question"):
-                            section_pair = (state["pending_question"]["section"], state["pending_question"]["sub"])
-                            
-                            # Remove it from unanswerable_sections so the RAG model can try again
-                            if section_pair in state.get("unanswerable_sections", []):
-                                state["unanswerable_sections"] = [
-                                    pair for pair in state["unanswerable_sections"] if pair != section_pair
-                                ]
-                            
-                            # Mark the question as not asked, so it gets reprocessed
+                            # update unanswerable_sections so the RAG model can try again the actual and following sections
+                            missing_set = set(state.get("missing_sections", []))
+                            state["unanswerable_sections"] = [
+                                pair for pair in state.get("unanswerable_sections", [])
+                                if pair not in missing_set
+                            ]
+
+                            # Reintentar la pregunta actual
                             state["pending_question"]["asked"] = False
                             state["next_action"] = "ask_brief_question"
                             log_event(state, "[Action] layout - trigger pending question with new document")
@@ -123,25 +123,39 @@ def render_left_panel(state):
 
 
 def render_chat_history(state):
-    # Display conversation history
     for msg in state.get("chat_history", []):
         role = msg.get("role", "assistant")
         content = msg.get("content", "")
+        content = markdown.markdown(content)
+
         is_user = role == "user"
-        avatar = "👤" if is_user else "🤖"
+
         align = "flex-end" if is_user else "flex-start"
-        bg = "#f5f5f5"
-        border = "#f5f5f5"
-        text_color = "#000000"
+        bg_color = "#e0f0ff" if is_user else "#f8f8f8"
+        avatar = "🙎" if is_user else "🤖"
+        text_color = "#000"
+        border = "#d3d3d3"
 
         st.markdown(f"""
-        <div style='display: flex; justify-content: {align}; margin: 0.5rem 0;'>
-            <div style='background-color: {bg}; color: {text_color}; border: 1px solid {border}; border-radius: 10px; padding: 1rem; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
-                <div style='font-size: 0.9rem; margin-bottom: 0.25rem;'><b>{avatar}</b></div>
-                <div style='font-size: 1rem; line-height: 1.5;'>{content}</div>
+        <div style="display: flex; justify-content: {align}; margin: 0.5rem 0;">
+            <div style="
+                max-width: 70%;
+                padding: 1rem;
+                background-color: {bg_color};
+                border: 1px solid {border};
+                border-radius: 12px;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 15px;
+                color: {text_color};
+            ">
+                <div style="margin-bottom: 0.5rem;"><b>{avatar}</b></div>
+                <div>{content}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+
 
 def render_center_panel(state):
     # Main chat interface: message history + user input
@@ -173,7 +187,14 @@ def render_center_panel(state):
 
     # If conversation hasn't started, welcome the user
     if not state.get("conversation_started"):
-        welcome = "Hi there! I’m your RFx AI Assistant. Upload any supporting documents or let me know what you’re working on —  I’ll guide you through building your RFx brief."
+        welcome = f"""**Hi there! I’m your RFx AI Assistant.**  
+                        Whether you're starting from scratch or already have documents prepared, I'm here to support you. You can:  
+                        <br>
+                        &nbsp;&nbsp;&nbsp;- **Upload any RFx-related files** (e.g., draft documents, notes, past briefs), or  
+                        &nbsp;&nbsp;&nbsp;- **Describe what you're working on**, and I'll guide you step-by-step through building your RFx brief.  
+                        <br>
+                        Behind the scenes, I rely on a team of specialized AI agents - each focused on understanding, classifying, and helping you structure the content.  
+                        Just let me know how you'd like to begin."""
         state["chat_history"].append({"role": "assistant", "content": welcome})
         state["conversation_started"] = True
         st.rerun()

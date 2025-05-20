@@ -126,6 +126,17 @@ def try_auto_answer(state: Dict) -> str:
     pending = state.get("pending_question")
     if not pending:
         return ""
+    
+    if state.get("uploaded_texts") and retrieval_context["qa_chain"] is None:
+        # if there is not retrieval, for example in the case of some new documents are uploaded
+        print("----> run_brief_intake ")
+        run_brief_intake(
+            rfx_type=state.get("rfx_type"),
+            user_input="",
+            uploaded_texts=state.get("uploaded_texts", []),
+            doc_name=state.get("doc_name", "TEMP"),
+            collection_name=state.get("collection_name", "")
+        )
 
     section = pending["section"]
     sub = pending["sub"]

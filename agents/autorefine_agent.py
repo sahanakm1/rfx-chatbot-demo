@@ -14,17 +14,33 @@ def refine_question(state):
     context = "\n".join([f"{m['role']}: {m['content']}" for m in history[-4:]])
 
     prompt = f"""
-            You are helping a user complete a brief. The last answer seemed off.
+            You are assisting a user in completing an RFx brief for a procurement process.
 
-            Rephrase the question in a more helpful and conversational way, based on this context.
-            If you think more information is needed, add a clarifying follow-up.
+            The user's last answer was flagged as problematic by the `Consistency Checker Agent`  — it was considered **irrelevant**, **incomplete**, or **not aligned** with the original question.
 
-            Original question: {question}
+            As a result, the `Refinement Agent` has been activated to rephrase or enhance the question so the user can provide a better response.
 
-            Context:
+            Your goal:
+
+            1. Begin with a short, professional sentence explaining that both `Consistency Checker Agent` and  `Refinement Agent` reviewed the last input. Let the user know the previous answer didn't fully match the expected information, and you're here to help clarify the request.  
+                 ➤ This introduction should appear in a separate paragraph.
+            2. Reformulate the original question using business-appropriate language, typical of procurement or vendor evaluation scenarios.
+            3. Optionally, include a follow-up clarification to guide the user if the question could be ambiguous.
+            4. Ensure the response is readable in **Markdown** format, using **bold** to highlight key terms. Do not extra use of the bold format, be clean please.
+            5. Keep the tone professional, respectful, and helpful — tailored for a procurement team or business stakeholder.
+            6. Please try to be consice and clear.
+
+            ---
+
+            📌 **Original question:**  
+            {question}
+
+            📄 **Brief context (if helpful):**  
             {context}
 
-            Only return the new assistant message.
+            ---
+
+            Please return only the improved message in Markdown format — starting with the intro and followed by the reformulated question.
             """
     result = llm.invoke([HumanMessage(content=prompt)])
     content = result.content.strip()

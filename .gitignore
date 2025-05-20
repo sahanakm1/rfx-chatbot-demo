@@ -4,6 +4,7 @@ __pycache__/
 .env
 *.sqlite
 *.pyc
+*.lock
 meta.json
 .DS_Store
 poppler-24.08.0

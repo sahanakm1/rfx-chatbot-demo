@@ -53,7 +53,7 @@ def render_chat_history(state):
         role = msg.get("role", "assistant")
         content = msg.get("content", "")
         is_user = role == "user"
-        avatar = "👤" if is_user else "🤖"
+        avatar = "🙎" if is_user else "🤖"
 
         align = "flex-end" if is_user else "flex-start"
         bg = "#dcf8c6" if is_user else "#f8f9fa"

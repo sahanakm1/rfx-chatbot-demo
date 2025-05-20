@@ -18,7 +18,9 @@ def autorefinement_agent_node(state):
             sub = state["pending_question"]["sub"]
             state["chat_history"].append({
                 "role": "assistant",
-                "content": f"✅ Updated section **{section}.{sub}** with a refined version of your answer."
+                "content": f"""✏️ Updated section **{section}.{sub}** with a refined version of your answer.  
+                <br>  
+                After a review — we made it clearer and more aligned with the question, based on the feedback from our internal agents: `Consistency Checker Agent` and  `Refinement Agent`."""
             })
         
             # Guardar la respuesta refinada en el brief

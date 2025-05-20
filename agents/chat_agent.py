@@ -101,23 +101,35 @@ def generate_question_for_section(section_key) -> str:
 def append_rfx_comment(state, context):
     rfx_type = state.get("rfx_type", "unspecified")
     prompt = f"""
-                You are an assistant helping a user respond to RFx requests.
-                The user hasn't explicitly asked about the RFx type, but you (the assistant) have inferred it based on the conversation and uploaded documents. 
-                The RFx has been classified as: {rfx_type}.
+                You are an assistant helping a business user from the procurement department respond to RFx requests.
 
-                Write a short, friendly message to inform the user, for example:
-                - That you've used their input and uploaded content to determine the RFx type.
-                - Clearly state the detected type (e.g., RFP, RFI, or RFQ).
-                - Offer to help them begin drafting the response now that the classification is complete.
+                The user hasn't explicitly asked about the RFx type, but you (the assistant) have carefully analyzed the available information — including their written input and any uploaded documents — using the `Classification Agent`.
 
-                Make it natural and helpful. Example tone:
-                - "Based on what you've shared, this looks like an RFI. I can help you start drafting it if you’re ready."
-                - "Thanks! I've reviewed your input and it seems you're working on an RFP. Want help drafting the response?"
+                The RFx has been automatically classified as: **{rfx_type}**.
+
+                Your goal is to write a short and professional message in **Markdown format**. The message should be clear, business-friendly, and easy to read. Avoid any technical jargon.
+
+                📌 Your message must include:
+
+                1. A clear explanation that the user's input was reviewed by the `Classification Agent`.
+                2. A confirmation of the **detected RFx type** (e.g., **RFP**, **RFI**, **RFQ**).
+                3. A call to action: the user can now begin drafting the document based on that classification.
+                4. An optional path: they may also manually adjust the RFx type if needed.
+                5. A final sentence asking politely for confirmation to proceed.
+
+                ✅ Format guidance:
+                - Use **bold** to highlight the RFx type and key agent references.
+                - The response should be suitable for a business user in procurement or operations.
+                - Write in a concise, respectful, and supportive tone.
+                - The entire message should be in **Markdown**.
+                - Please avoid saying Hello or Thanks to the user.
+
                 ---
-
-                Previous assistant message (for reference): 
+                Previous assistant message (for reference):  
                 {context}
                 """
+
+
 
     response = llm.invoke([HumanMessage(content=prompt)])
     content = response.content if hasattr(response, "content") else str(response)
@@ -128,14 +140,26 @@ def append_rfx_comment(state, context):
 # Generate a reformulated question for a given brief section and sub-question
 def generate_question_for_section(state, original_question):
     prompt = f"""
-                You are helping a user complete a Request for {state.get("rfx_type")} brieft.
+                You are assisting a user in completing a **Request for {state.get("rfx_type")}** brief as part of a professional procurement process.
 
-                Rephrase the following question in a friendly, conversational, and helpful tone. Make sure it’s clear and easy to answer:
+                Your task is to write the **next question** in a way that feels like a natural continuation of the flow — as if you're smoothly guiding the user through the next section of the document.
 
-                Original question: "{original_question}"
+                Please:
+                - Use a **professional and business-friendly tone**, suitable for procurement teams.
+                - Ensure the question is **clear, concise, and easy to respond to**.
+                - The message must be **readable in markdown**.
+                - Use **bold** to emphasize key terms or important actions.
+                - Do **not** say that you are rephrasing a question — the user should feel they are being guided seamlessly through the brief.
+                - You may start with a sentence like “Let’s continue with the next section…” or “Now, moving on to…” if it fits naturally.
 
-                Avoid being too technical. Keep it short, natural, and specific.
+                ---
+
+                **Original question:**  
+                "{original_question}"
+
+                Please return only the improved question in markdown format.
                 """
+
     response = llm.invoke([HumanMessage(content=prompt)])
     return re.sub(r"^(AI|Assistant|System):\s*", "", str(response.content)).strip()
 

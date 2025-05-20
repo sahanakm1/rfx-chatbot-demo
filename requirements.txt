@@ -1,6 +1,7 @@
 # Core
 streamlit
 pdfplumber
+markdown
 
 # LangChain ecosystem
 langchain==0.3.24
