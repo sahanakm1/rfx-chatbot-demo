@@ -218,28 +218,9 @@ def render_right_panel(state):
             st.markdown("<i>No sections generated yet.</i>", unsafe_allow_html=True)
 
 
-        # 📂 Section header for document downloads
-        if state.get("docx_path") or state.get("zip_path"):
-            st.markdown("""
-                <div style='font-size:15px; font-weight:600; margin-top:1rem; display: flex; align-items: center; gap: 0.4rem;'>
-                    📂 Click to download your RFx documents
-                </div>
-            """, unsafe_allow_html=True)
-
-            # Optional spacing container
-            st.markdown("<div style='margin-top: 0.5rem;'>", unsafe_allow_html=True)
-
-            if state.get("docx_path"):
-                render_download_button_for_docx(state["docx_path"])
-
-            if state.get("zip_path"):
-                render_download_button_for_zip(state["zip_path"])
-
-            st.markdown("</div>", unsafe_allow_html=True)
-
-
         # ✅ Show download buttons if doc is ready
         if state.get("document_generated"):
+            st.markdown("##### Click here to download the RFx documents")
             if state.get("docx_path"):
                 render_download_button_for_docx(state["docx_path"])
 
