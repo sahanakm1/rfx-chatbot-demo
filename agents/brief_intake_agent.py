@@ -41,6 +41,7 @@ def run_brief_intake(
 
     # Try to initialize the retriever and QA system using the uploaded documents
     if uploaded_texts:
+        print("uploaded_texts")
         try:
             start = time.time()
 #            embed_model = llm_calling(model_name="mistral").call_embed_model()
@@ -50,6 +51,7 @@ def run_brief_intake(
                 embeddings=embed_model, 
                 ensure_exists=False
             )
+            print("vector db")
 
             retriever = vectordb.as_retriever()
             retriever.search_kwargs["k"] = 5
@@ -62,6 +64,7 @@ def run_brief_intake(
             # Calling gpt model
             llm = llm_calling().call_llm()
             qa_chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever, chain_type="stuff")
+            print("qa_chain")
 
             retrieval_context["retriever"] = retriever
             retrieval_context["qa_chain"] = qa_chain
@@ -129,7 +132,9 @@ def try_auto_answer(state: Dict) -> str:
     
     if state.get("uploaded_texts") and retrieval_context["qa_chain"] is None:
         # if there is not retrieval, for example in the case of some new documents are uploaded
-        print("----> run_brief_intake ")
+        print("\n\n----> run_brief_intake ")
+        print(state.get("uploaded_texts", []))
+        print("\n\n----> run_brief_intake ")
         run_brief_intake(
             rfx_type=state.get("rfx_type"),
             user_input="",
@@ -245,7 +250,21 @@ def try_auto_answer_batch(state: Dict, batch: List[Tuple[str, str]], max_workers
 
     retriever = retrieval_context.get("retriever")
     if not retriever:
-        return resolved, batch
+        if state.get("uploaded_texts") and retrieval_context["qa_chain"] is None:
+            # if there is not retrieval, for example in the case of some new documents are uploaded
+            print("\n\n----> run_brief_intake ")
+            print(state.get("uploaded_texts", []))
+            print("\n\n----> run_brief_intake ")
+            run_brief_intake(
+                rfx_type=state.get("rfx_type"),
+                user_input="",
+                uploaded_texts=state.get("uploaded_texts", []),
+                doc_name=state.get("doc_name", "TEMP"),
+                collection_name=state.get("collection_name", "")
+            )
+            retriever = retrieval_context.get("retriever")
+        else:
+            return resolved, batch
 
     def process_section(section, sub):
         question = state["brief"][section][sub]["question"]
