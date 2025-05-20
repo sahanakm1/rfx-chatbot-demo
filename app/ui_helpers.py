@@ -4,6 +4,7 @@
 
 import streamlit as st
 import os
+import hashlib
 
 def set_background():
     # Apply global styling to Streamlit app to match white, minimalistic theme
@@ -67,15 +68,58 @@ def render_chat_history(state):
         </div>
         """, unsafe_allow_html=True)
 
-def render_download_button(filepath):
-    # Render a download button for the generated RFx document if file exists
+def render_download_button_for_docx(filepath):
     if not filepath or not os.path.exists(filepath):
         return
-
     with open(filepath, "rb") as f:
+        file_data = f.read()
+        unique_hash = hashlib.md5(file_data).hexdigest()
         st.download_button(
-            label="⬇️ Download RFx Brief",
-            data=f,
-            file_name="Generated_RFx_document.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            label="⬇️ Download RFx Brief document",
+            data=file_data,
+            file_name=os.path.basename(filepath),
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            key=f"download_docx_button_{unique_hash}"
         )
+
+
+def render_download_button_for_zip(filepath):
+    if not filepath or not os.path.exists(filepath):
+        return
+    with open(filepath, "rb") as f:
+        file_data = f.read()
+        unique_hash = hashlib.md5(file_data).hexdigest()
+        st.download_button(
+            label="📥 Download Full RFx Package (.zip)",
+            data=file_data,
+            file_name=os.path.basename(filepath),
+            mime="application/zip",
+            key=f"download_zip_button_{unique_hash}"
+        )
+
+
+# def render_download_button_for_docx(filepath):
+#     # Render a download button for the generated RFx document if file exists
+#     if not filepath or not os.path.exists(filepath):
+#         return
+
+#     with open(filepath, "rb") as f:
+#         st.download_button(
+#             label="⬇️ Download RFx Brief document",
+#             data=f,
+#             file_name="Generated_RFx_document.docx",
+#             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+#             key=f"download_docx_button_{os.path.basename(filepath)}"
+#         )
+
+# def render_download_button_for_zip(filepath):
+#     if not filepath or not os.path.exists(filepath):
+#         return
+#     with open(filepath, "rb") as f:
+#         st.download_button(
+#             label="📥 Download Full RFx Package (.zip)",
+#             data=f,
+#             file_name="RFx_Brief_Package.zip",
+#             mime="application/zip",
+#             key=f"download_zip_button_{os.path.basename(filepath)}"
+#         )

@@ -28,10 +28,6 @@ def review_agent_node(state):
     # Case 1: User says it's all good
     if user_input.lower() in ["all good", "no changes"]:
         print("[review_agent_node] case 1: user confirmed all is good")
-        state["chat_history"].append({
-            "role": "assistant",
-            "content": "✅ Great! I will now proceed to generate the final document."
-        })
         state["next_action"] = "draft_generator"
         state["finish_review"] = True
         state["user_input"] = ""

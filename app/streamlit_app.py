@@ -34,6 +34,13 @@ if "conversation_state" not in st.session_state:
 
 state = st.session_state.conversation_state
 
+# # 🔁 Check if we need to regenerate draft after appendix upload
+# if state.get("trigger_regeneration"):
+#     state["next_action"] = "draft_generator"
+#     state["langgraph_ran"] = False
+#     state["trigger_regeneration"] = False
+#     st.rerun()
+
 # Build LangGraph only once per session
 @st.cache_resource
 def get_graph():

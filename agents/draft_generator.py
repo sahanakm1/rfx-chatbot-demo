@@ -11,7 +11,7 @@ TOC = {
     "B. PURPOSE OF THE RFP": ["B.1 Responses", "B.2 Schedule", "B.3 Queries", "B.4 Evaluation Criteria"],
     "C. CONTEXT": ["C.1 Project Scope and Objective", "C.2 JTI Requirements", "C.3 Proposal evaluation criteria"],
     "D. RESPONSE": ["D.1 Executive Summary", "D.2 Additional proposal details"],
-    "E. APPENDICES": []
+    "E. APPENDICES": ["E.1 Supporting Documents"]
 }
 
 def add_heading(doc, text, level):
@@ -69,5 +69,6 @@ def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx")
     doc.save(output_path)
     print(f"Document saved as {output_path}")
     print("Open the document in Word and press F9 to update the TOC!")
-    
+
+
     return output_path

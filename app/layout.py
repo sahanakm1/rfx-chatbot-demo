@@ -6,14 +6,15 @@ import sys
 import os
 import time
 import streamlit as st
-from ui_helpers import render_chat_history, render_download_button
+from ui_helpers import render_chat_history, render_download_button_for_zip, render_download_button_for_docx
 from state_handler import render_logs, handle_uploaded_files, is_vague_response, render_vague_response_options, log_event
 from prompts.brief_structure import SECTION_TITLES
+
 
 def render_left_panel(state):
     # Upload documents panel
     with st.container():
-        st.markdown("<p style='font-size:13px; font-weight:600;'>📄 Upload Documents</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:13px; font-weight:600;'>📄 Upload supporting documents</p>", unsafe_allow_html=True)
         with st.container():
             # Style customization for file uploader
             st.markdown("""
@@ -26,22 +27,60 @@ def render_left_panel(state):
             </style>
             """, unsafe_allow_html=True)
 
-            uploaded_files = st.file_uploader("Upload RFx files", type=["pdf", "docx", "txt"], accept_multiple_files=True)
+            uploaded_files = st.file_uploader(
+                "Upload RFx or supporting files",
+                type=["pdf", "docx", "txt"],
+                accept_multiple_files=True
+            )
+
             if uploaded_files:
-                # Track and log new document uploads
-                initial_count = len(state.get("uploaded_texts", []))
-                handle_uploaded_files(state, uploaded_files)
-                new_docs = state.get("uploaded_texts", [])[initial_count:]
-                if new_docs:
-                    #names = ", ".join(doc["name"] for doc in new_docs)
-                    names = ", ".join(file.name for file in uploaded_files)
-                    state["chat_history"].append({
-                        "role": "assistant",
-                        "content": f"📎 Document(s) uploaded successfully: {names}"
-                    })
-                    state["next_action"] = "trigger_after_upload"
-                    state["langgraph_ran"] = False
-                    st.rerun()
+                from state_handler import handle_uploaded_files
+
+                # Determine if brief already exists → treat uploads as appendix
+                is_appendix = state.get("document_generated", False)
+                state["appendix_mode"] = is_appendix
+
+                # Avoid duplicates
+                already_uploaded = {f["name"] for f in state.get("uploaded_texts", [])}
+                already_appendices = {f.name for f in state.get("appendix_files", [])}
+                deduplicated_files = [
+                    f for f in uploaded_files
+                    if f.name not in already_uploaded and f.name not in already_appendices
+                ]
+
+                if deduplicated_files:
+                    handle_uploaded_files(state, deduplicated_files)
+                    state["appendix_mode"] = False
+
+                    file_names = ", ".join(f.name for f in deduplicated_files)
+
+                    # Add to chat history
+                    if is_appendix:
+                        state.setdefault("appendix_files", []).extend(deduplicated_files)
+                        state["chat_history"].append({
+                            "role": "assistant",
+                            "content": f"📎 Uploaded appendix files: {file_names}"
+                        })
+                        st.success(f"{len(deduplicated_files)} appendix file(s) uploaded.")
+
+                        # ✅ Immediately regenerate final ZIP
+                        state["next_action"] = "draft_generator"
+                        state["langgraph_ran"] = False
+                        st.rerun()
+
+                        # # ✅ Flag for draft regeneration (but rerun in next cycle)
+                        # state["trigger_regeneration"] = True
+
+                    else:
+                        state["chat_history"].append({
+                            "role": "assistant",
+                            "content": f"📎 Document(s) uploaded successfully: {file_names}"
+                        })
+                        state["next_action"] = "trigger_after_upload"
+                        state["langgraph_ran"] = False
+                        st.rerun()
+                else:
+                    st.info("All selected files have been uploaded.")
 
         # Display logs
         st.markdown("<p style='font-size:13px; font-weight:600; margin-top: 1rem;'>🧾 Logs</p>", unsafe_allow_html=True)
@@ -58,11 +97,13 @@ def render_left_panel(state):
         }
         </style>
         """, unsafe_allow_html=True)
+
         # Reset conversation
         if st.button("🔁 Reset Chat", key="reset_chat_btn"):
             from state_handler import initialize_state
             st.session_state.conversation_state = initialize_state()
             st.rerun()
+
 
 def render_chat_history(state):
     # Display conversation history
@@ -115,7 +156,7 @@ def render_center_panel(state):
 
     # If conversation hasn't started, welcome the user
     if not state.get("conversation_started"):
-        welcome = "Hi! I’m your RFx assistant. How can I help you today?"
+        welcome = "Hi there! I’m your RFx AI Assistant. Upload any supporting documents or let me know what you’re working on —  I’ll guide you through building your RFx brief."
         state["chat_history"].append({"role": "assistant", "content": welcome})
         state["conversation_started"] = True
         st.rerun()
@@ -172,21 +213,59 @@ def render_right_panel(state):
                             st.markdown(answer)
                         else:
                             st.markdown("_No content yet._")
-            # for section, subs in state["brief"].items():
-            #     with st.expander(section):
-            #         for subsec, content in subs.items():
-            #             answer = content.get("answer", "").strip()
-            #             title = content.get("title", subsec)  # fallback to A.1 if title is missing
-            #             st.markdown(f"**{title}**")
-            #             if answer and answer.upper() != "N/A":
-            #                 st.markdown(answer)
-            #             else:
-            #                 st.markdown("_No content yet._")
 
         elif not state.get("document_generated"):
             st.markdown("<i>No sections generated yet.</i>", unsafe_allow_html=True)
 
-        if state.get("document_generated") and state.get("document_path"):
-            render_download_button(state["document_path"])
+
+        # 📂 Section header for document downloads
+        if state.get("docx_path") or state.get("zip_path"):
+            st.markdown("""
+                <div style='font-size:15px; font-weight:600; margin-top:1rem; display: flex; align-items: center; gap: 0.4rem;'>
+                    📂 Click to download your RFx documents
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Optional spacing container
+            st.markdown("<div style='margin-top: 0.5rem;'>", unsafe_allow_html=True)
+
+            if state.get("docx_path"):
+                render_download_button_for_docx(state["docx_path"])
+
+            if state.get("zip_path"):
+                render_download_button_for_zip(state["zip_path"])
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+
+        # ✅ Show download buttons if doc is ready
+        if state.get("document_generated"):
+            if state.get("docx_path"):
+                render_download_button_for_docx(state["docx_path"])
+
+            # 📦 Show ZIP button if available
+            if state.get("zip_path") and os.path.exists(state["zip_path"]):
+                with open(state["zip_path"], "rb") as f:
+                    st.download_button(
+                        label="📦 Download Full RFx Package (ZIP)",
+                        data=f,
+                        file_name="Final_RFx_Package.zip",
+                        mime="application/zip"
+                    )
+
+                # 🧾 Optional: list appendix file names below ZIP
+                appendix_files = state.get("appendix_files", [])
+                if appendix_files:
+                    st.markdown("<p style='font-size:13px; margin-top:1rem;'>📎 Files added to ZIP:</p>", unsafe_allow_html=True)
+                    
+                    seen_files = set()
+                    for file in appendix_files:
+                        if file.name not in seen_files:
+                            st.markdown(f"- {file.name}")
+                            seen_files.add(file.name)
+
+                    # for file in appendix_files:
+                    #     #st.markdown(f"- {file['name']}")
+                    #     st.markdown(f"- {file.name}")
 
     st.markdown("<hr style='border-top: 1px solid #ccc;'>", unsafe_allow_html=True)

@@ -199,6 +199,15 @@ def handle_uploaded_files(state, uploaded_files):
         else:
             content = uploaded_file.read().decode("utf-8", errors="ignore")
 
+        # If uploading as appendix only — do NOT ingest
+        if state.get("appendix_mode", False):
+            existing = {f.name for f in state.get("appendix_files", [])}
+            if uploaded_file.name not in existing:
+                state.setdefault("appendix_files", []).append(uploaded_file)
+            log_event(state, f"[Info] Appendix document '{uploaded_file.name}' uploaded (no ingestion)")
+            continue
+
+        # Otherwise, process for classification
         collection = state.get("collection_name", "rfx_default")
         ingest_document(doc_id=uploaded_file.name, text=content, collection_name=collection)
 
