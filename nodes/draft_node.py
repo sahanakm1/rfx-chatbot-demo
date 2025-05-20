@@ -39,13 +39,31 @@ def draft_node(state):
         docx_path = os.path.join(output_folder, "Generated_RFx_document.docx")
         zip_path = os.path.join(output_folder, "RFx_Brief_Package.zip")
 
-        # Inject appendix filenames into E.1 section of the brief
-        if "E" in formatted and "E.1" in formatted["E"]:
-            appendix_files = state.get("appendix_files", [])
-            if appendix_files:
-                filenames_list = "\n".join(f"- {f.name}" for f in appendix_files)
-                formatted["E"]["E.1"] = f"The following supporting documents are attached:\n{filenames_list}"
+        # ✅ Injection of appendix filenames into E.1
+        appendix_files = state.get("appendix_files", [])
+        if "E" not in formatted:
+            formatted["E"] = {}
 
+        if appendix_files:
+            seen_names = set()
+            unique_names = []
+            for f in appendix_files:
+                if f.name not in seen_names:
+                    unique_names.append(f"- {f.name}")
+                    seen_names.add(f.name)
+            formatted["E"]["E.1"] = (
+                "The following supporting documents are attached:\n" +
+                "\n".join(unique_names)
+            )
+        else:
+            formatted["E"]["E.1"] = "(No supporting documents uploaded)"
+
+        # formatted["E"]["E.1"] = (
+        #     "The following supporting documents are attached:\n" +
+        #     "\n".join(f"- {file.name}" for file in appendix_files)
+        #     if appendix_files else
+        #     "(No supporting documents uploaded)"
+        # )
 
          # ✅ First generate the DOCX file
         build_doc_from_json(formatted, output_path=docx_path)
@@ -84,23 +102,29 @@ def draft_node(state):
         state["brief_updated"] = True
         state["next_action"] = ""
 
-        state["chat_history"].append({
-        "role": "assistant",
-        "content": "✅ Great! I will now proceed to generate the final document."
-        })
+        if not state.get("displayed_generate_msg", False):
+            state["chat_history"].append({
+                "role": "assistant",
+                "content": "✅ Great! I will now proceed to generate the final document."
+            })
+            state["displayed_generate_msg"] = True
+            
+        if not state.get("displayed_ready_msg", False):
+            state["chat_history"].append({
+                "role": "assistant",
+                "content": "✅ Your RFx brief is ready and available for download in the right panel."
+            })
+            state["displayed_ready_msg"] = True
 
-        state["chat_history"].append({
-            "role": "assistant",
-            "content": "✅ Your RFx brief is ready and available for download in the right panel."
-        })
-        
-        state["chat_history"].append({
-        "role": "assistant",
-        "content": (
-            "📎 If you'd like to attach any additional supporting documents, you can upload them in the left panel.\n\n"
-            "The uploaded documents will be included in the final ZIP package."
-            )
-        })
+        if not state.get("displayed_appendix_hint", False):
+            state["chat_history"].append({
+                "role": "assistant",
+                "content": (
+                    "📎 If you'd like to attach any additional supporting documents, you can upload them in the left panel.\n\n"
+                    "The uploaded documents will be included in the final ZIP package."
+                )
+            })
+            state["displayed_appendix_hint"] = True
 
         # Detect if ZIP now includes any appendix files
         if appendix_paths:  # Only show this message if appendices are present

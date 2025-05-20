@@ -1,5 +1,6 @@
 # 📁 File: nodes/review_node.py
 from agents.review_agent import handle_review_feedback
+from prompts.brief_structure import SECTION_TITLES
 
 def review_agent_node(state):
     print("[review_agent_node] Starting brief review phase")
@@ -39,9 +40,17 @@ def review_agent_node(state):
         print(f"[review_agent_node] case 2: section: {section or 'N/A'} subsection: {sub or 'N/A'}")
 
         if updated:
+            # state["chat_history"].append({
+            #     "role": "assistant",
+            #     "content": f"✏️ I've updated **{section}.{sub}** based on your feedback. You can continue reviewing or tell me it's all good to proceed."
+            # })
+            section_title = SECTION_TITLES.get(section, section)
+            sub_title = state.get("brief", {}).get(section, {}).get(sub, {}).get("title", sub)
+            full_title = f"{section_title}.{sub_title}"
+
             state["chat_history"].append({
                 "role": "assistant",
-                "content": f"✏️ I've updated **{section}.{sub}** based on your feedback. You can continue reviewing or tell me it's all good to proceed."
+                "content": f"✏️ I've updated **{full_title}** based on your feedback. You can continue reviewing or tell me it's all good to proceed."
             })
         else:
             state["chat_history"].append({

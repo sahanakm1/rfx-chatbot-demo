@@ -31,6 +31,9 @@ def initialize_state():
         "document_path": None,
         "show_left_panel": True,
         "show_right_panel": True,
+        "displayed_generate_msg": False,
+        "displayed_ready_msg": False,
+        "displayed_appendix_hint": False,
         "collection_name": f"rfx_session_{uuid.uuid4().hex[:8]}"
     }
 

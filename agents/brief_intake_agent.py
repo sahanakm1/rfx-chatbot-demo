@@ -1,3 +1,4 @@
+
 # brief_intake_agent.py
 import hashlib
 import time
@@ -317,4 +318,3 @@ def try_auto_answer_batch(state: Dict, batch: List[Tuple[str, str]], max_workers
                 state["brief"][section][sub]["answer"] = answer
 
     return resolved, unresolved
-
