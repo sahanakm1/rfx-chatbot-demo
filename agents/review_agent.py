@@ -8,7 +8,7 @@ def handle_review_feedback(state, user_comment: str):
 
     # Step 1: Try to find which section the user is referring to
     candidates = []
-    for section, subs in brief.items():
+    for section, subs in reversed(list(brief.items())):
         for sub, content in subs.items():
             original = content.get("answer", "")
             prompt = f"""
@@ -34,6 +34,8 @@ def handle_review_feedback(state, user_comment: str):
     # Step 2: Rewrite the selected content using user feedback
     prompt = f"""
                 Rewrite the following section incorporating the user's feedback.
+                Use business-appropriate language, typical of procurement or vendor evaluation scenarios.
+                Keep the tone professional, respectful, and helpful — tailored for a procurement team or business stakeholder.
 
                 Original content:
                 {original}
@@ -41,7 +43,10 @@ def handle_review_feedback(state, user_comment: str):
                 User feedback:
                 {user_comment}
 
-                Only return the revised content.
+                
+                Please rewrite original content using the user's feedback in a way that is more complete, polished, and aligned with the brief’s purpose. 
+                Do not use the first person.
+                Only output the refined revised content, no explanation.
             """
     new_answer = llm.invoke(prompt).content.strip()
     state["brief"][section][sub]["answer"] = new_answer

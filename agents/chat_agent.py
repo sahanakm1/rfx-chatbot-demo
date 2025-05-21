@@ -139,6 +139,8 @@ def append_rfx_comment(state, context):
 
 # Generate a reformulated question for a given brief section and sub-question
 def generate_question_for_section(state, original_question):
+    history = state.get("chat_history", [])
+    context = "\n".join([f"{m['role']}: {m['content']}" for m in history[-4:]])
     prompt = f"""
                 You are assisting a user in completing a **Request for {state.get("rfx_type")}** brief as part of a professional procurement process.
 
@@ -148,11 +150,14 @@ def generate_question_for_section(state, original_question):
                 - Use a **professional and business-friendly tone**, suitable for procurement teams.
                 - Ensure the question is **clear, concise, and easy to respond to**.
                 - The message must be **readable in markdown**.
-                - Use **bold** to emphasize key terms or important actions.
+                - Use **bold** only to emphasize key terms or important actions. Avoid the bold in entire sentences.
                 - Do **not** say that you are rephrasing a question — the user should feel they are being guided seamlessly through the brief.
-                - You may start with a sentence like “Let’s continue with the next section…” or “Now, moving on to…” if it fits naturally.
+                - You may start with a sentence like “Let's continue with the next section…” or “Now, moving on to…” if it fits naturally.
 
+                
                 ---
+                Previous assistant message (for reference is useful):  
+                {context}
 
                 **Original question:**  
                 "{original_question}"

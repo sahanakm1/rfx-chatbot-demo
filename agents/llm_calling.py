@@ -17,7 +17,7 @@ class llm_calling:
             api_version=AZURE_OPENAI_API_VERSION,
             azure_endpoint=AZURE_OPENAI_BASE_URL,
             deployment_name=GPT_DEPLOYMENT_NAME,
-            temperature=0,
+            temperature=0.2,
         )
 
     def call_embed_model(self):
