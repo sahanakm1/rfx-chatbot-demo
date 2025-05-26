@@ -1,10 +1,16 @@
+from agents.blob_storage import blob_storage
+
 import os
 import json
+import io
+import uuid
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+
 
 TOC = {
     "A. INTRODUCTION": ["A.1 JTI", "A.2 Our Engagement"],
@@ -66,9 +72,14 @@ def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx")
     # ✅ Create output directory if it doesn't exist
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
+    print(doc)
     doc.save(output_path)
     print(f"Document saved as {output_path}")
     print("Open the document in Word and press F9 to update the TOC!")
 
+    output_path = os.path.abspath(output_path)
+    file_name = os.path.basename(output_path)
+    file_path = os.path.dirname(output_path)
 
+    blob_storage().upload_blob_file(container_name="rfx-draft",file_path=file_path,file_name=file_name)
     return output_path

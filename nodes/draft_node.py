@@ -2,6 +2,8 @@
 # Generates a document from the completed brief.
 
 from agents.draft_generator import build_doc_from_json
+from agents.blob_storage import blob_storage
+
 import os
 import zipfile
 
@@ -93,6 +95,10 @@ def draft_node(state):
             for path in appendix_paths:
                 zipf.write(path, arcname=os.path.basename(path))
 
+        zip_path = os.path.abspath(zip_path)
+        file_name = os.path.basename(zip_path)
+        file_path = os.path.dirname(zip_path)
+        blob_storage().upload_zip_file(container_name="rfx-draft",file_name=file_name,file_path=file_path)
         # Update state
         state["document_path"] = zip_path
         state["docx_path"] = docx_path
