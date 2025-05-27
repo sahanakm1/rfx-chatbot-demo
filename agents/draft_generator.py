@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -19,12 +20,22 @@ def add_heading(doc, text, level):
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
 def add_paragraph(doc, text):
-    p = doc.add_paragraph(text)
+    p = doc.add_paragraph()
     p.style.font.size = Pt(11)
+
+    # Dividir en partes por negritas con Markdown (**negrita**)
+    parts = re.split(r'(\*\*.*?\*\*)', text)
+
+    for part in parts:
+        clean_text = part.replace('**', '')
+        run = p.add_run(clean_text)
+        if part.startswith('**') and part.endswith('**'):
+            run.bold = True
+        run.font.size = Pt(11)
+
     return p
 
 def insert_toc(paragraph):
-    """Insert a field code for TOC that Word will convert into a clickable TOC"""
     fldChar1 = OxmlElement('w:fldChar')
     fldChar1.set(qn('w:fldCharType'), 'begin')
     instrText = OxmlElement('w:instrText')
@@ -43,12 +54,12 @@ def insert_toc(paragraph):
 def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx"):
     doc = Document()
     doc.add_heading("Generated Proposal", level=0)
-    
-    # Insert TOC Placeholder
+
+    # Insertar TOC
     toc_paragraph = doc.add_paragraph()
     insert_toc(toc_paragraph)
     doc.add_paragraph("")
-    
+
     for section_title, subsections in TOC.items():
         section_key = section_title.split(".")[0]
         add_heading(doc, section_title, level=1)
@@ -62,13 +73,10 @@ def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx")
         else:
             content = data_json.get(section_key, "(No content provided)")
             add_paragraph(doc, content)
-    
-    # ✅ Create output directory if it doesn't exist
+
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
     doc.save(output_path)
     print(f"Document saved as {output_path}")
     print("Open the document in Word and press F9 to update the TOC!")
-
 
     return output_path

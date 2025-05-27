@@ -47,7 +47,7 @@ def render_left_panel(state):
             allowed_types = (
                 ["pdf", "docx", "txt", "xlsx", "csv", "png", "jpg", "jpeg", "ppt", "pptx"]
                 if is_appendix else
-                ["pdf", "docx", "txt"]
+                ["pdf", "docx", "txt", "pptx", "xlsx", "msg"]
             )
 
             uploaded_files = st.file_uploader(
@@ -182,27 +182,24 @@ def render_chat_history(state):
 def render_center_panel(state):
     # Main chat interface: message history + user input
     st.markdown("""
-        <style>
-        .chat-wrapper {
-            display: flex;
-            flex-direction: column;
-        }
-        .scrollable-chat {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 1rem;
-            padding-bottom: 1rem;
-            display: flex;
-            flex-direction: column;
-        }
-        .fixed-input {
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-            border-top: 1px solid #ccc;
-            background-color: white;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    <style>
+    .chat-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .scrollable-chat {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 1rem;
+    }
+    .fixed-input {
+        border-top: 1px solid #ccc;
+        background-color: white;
+        padding-top: 0.75rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
     if "chat_history" not in state:
         state["chat_history"] = []

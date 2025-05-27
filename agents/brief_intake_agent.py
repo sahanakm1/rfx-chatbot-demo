@@ -154,12 +154,13 @@ def try_auto_answer(state: Dict) -> str:
             answer = retrieval_context["qa_chain"].invoke({"query": f"""
                 You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
                 Your task is to answer the following question using the content retrieved from the provided documents.
-                If the documents do not contain enough information to answer with confidence, or if you are uncertain, respond with exactly: 'N/A'.
+                
                 
                 Question:
                 {question}
                 Make sure to answer 'N/A' in case there is not relevant information in the answer.
                 Avoid to do references to the document, just elaborate the answer as best you can.
+                Please be very professional, add details that you believe could be relevant, and try to be extensive.
             """})
 
             if isinstance(answer, str):
@@ -273,6 +274,8 @@ def try_auto_answer_batch(state: Dict, batch: List[Tuple[str, str]], max_workers
             # Paso 1: Recuperar documentos
             retrieved_docs = retriever.get_relevant_documents(question)
             retrieved_text = "\n\n".join(doc.page_content for doc in retrieved_docs)
+            sources = [doc.metadata.get("source", "unknown") for doc in retrieved_docs]
+            
 
             # Paso 2: Imprimir los chunks recuperados
             #print(f"\n[Retrieved for {section} - {sub}]\n{retrieved_text}\n")
@@ -283,7 +286,9 @@ def try_auto_answer_batch(state: Dict, batch: List[Tuple[str, str]], max_workers
                     You are a procurement analyst expert in preparing {state["rfx_type"]} documents.
                     Your task is to answer the following question using only the content provided below.
                     If the content does not contain enough information to answer with confidence, or if you are uncertain, respond with exactly: 'N/A'.
-                    Do not make assumptions. Do not answer based on prior knowledge.
+                    
+                    Avoid to do references to the document, just elaborate the answer as best you can.
+                    Please be very professional, add details that you believe could be relevant, and try to be extensive.
 
                     Context:
                     {retrieved_text}
@@ -297,6 +302,10 @@ def try_auto_answer_batch(state: Dict, batch: List[Tuple[str, str]], max_workers
                 answer = response.content.strip()                
             else:
                 answer = str(response).strip()
+
+            # add sources
+            unique_sources = sorted(set(sources))
+            answer += "\n\n---**sources:** " + ", ".join(unique_sources)
 
             return (section, sub, answer)
         except Exception as e:

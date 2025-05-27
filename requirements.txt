@@ -2,6 +2,9 @@
 streamlit
 pdfplumber
 markdown
+python-pptx
+openpyxl
+extract-msg
 
 # LangChain ecosystem
 langchain==0.3.24

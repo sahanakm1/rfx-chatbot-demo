@@ -9,6 +9,7 @@ from docx import Document
 import pdfplumber
 
 from agents.document_ingestor import ingest_document
+from agents.document_reader import read_file_as_documents
 
 def initialize_state():
     return {
@@ -186,38 +187,34 @@ def handle_uploaded_files(state, uploaded_files):
         if uploaded_file.name in filenames_seen:
             continue
 
-        if uploaded_file.name.lower().endswith(".pdf"):
-            try:
-                with pdfplumber.open(uploaded_file) as pdf:
-                    content = "\n\n".join(page.extract_text() or "" for page in pdf.pages)
-            except Exception as e:
-                content = f"[Warning] Could not extract text from {uploaded_file.name}: {e}"
+        
 
-        elif uploaded_file.name.lower().endswith(".docx"):
-            try:
-                content = extract_docx_text(uploaded_file)
-            except Exception as e:
-                content = f"[Warning] Could not extract text from {uploaded_file.name}: {e}"
-
-        else:
-            content = uploaded_file.read().decode("utf-8", errors="ignore")
-
-        # If uploading as appendix only — do NOT ingest
+        
         if state.get("appendix_mode", False):
+            # If uploading as appendix only — do NOT ingest
             existing = {f.name for f in state.get("appendix_files", [])}
             if uploaded_file.name not in existing:
                 state.setdefault("appendix_files", []).append(uploaded_file)
             log_event(state, f"[Info] Appendix document '{uploaded_file.name}' uploaded (no ingestion)")
             continue
+        else:
+            # Otherwise, process for classification
+            try:
+                documents, content = read_file_as_documents(uploaded_file, uploaded_file.name)
 
-        # Otherwise, process for classification
-        collection = state.get("collection_name", "rfx_default")
-        ingest_document(doc_id=uploaded_file.name, text=content, collection_name=collection)
+                collection = state.get("collection_name", "rfx_default")
+                ingest_document(
+                    documents=documents,
+                    doc_id_prefix=uploaded_file.name,
+                    collection_name=collection
+                )
+                state["uploaded_texts"].append({
+                        "name": uploaded_file.name,
+                        "content": content
+                    })
+            except Exception as e:
+                print(f"[Warning] Could not process {uploaded_file.name}: {e}")
 
-        state["uploaded_texts"].append({
-            "name": uploaded_file.name,
-            "content": content
-        })
 
         log_msg = f"[Info] User document '{uploaded_file.name}' uploaded"
         if log_msg not in state["logs"]:

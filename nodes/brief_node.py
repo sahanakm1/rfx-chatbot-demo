@@ -50,7 +50,7 @@ def brief_node(state):
     print(f"\t---brief node--- pending_question: {state.get('pending_question')}")
 
     if remaining and state['next_action'] != "start_brieft":
-        batch = remaining[:3]
+        batch = remaining[:2]
         print("\t---brief node--- try auto answer batch mode")
         resolved, unresolved = try_auto_answer_batch(state, batch)
         print("\t---brief node--- resolved answers: "+str(len(resolved)))
