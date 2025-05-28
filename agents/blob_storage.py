@@ -30,3 +30,11 @@ class blob_storage:
         with open(local_file_path, "rb") as data:
             container_client.upload_blob(name=blob_name, data=data, overwrite=True)
         print(f"Uploaded {local_file_path} to Azure Blob Storage as {blob_name}")
+
+    def writing_docx_file(self, container_name: str, data,blob_name: str):
+        container_client = self.blob_service_client.get_container_client(container=container_name)
+
+        #blob_name = "RFx_Brief_Package.docx" # Name for the blob in Azure
+        
+        container_client.upload_blob(name=blob_name, data=data, overwrite=True)
+        #print(f"Uploaded {local_file_path} to Azure Blob Storage as {blob_name}")

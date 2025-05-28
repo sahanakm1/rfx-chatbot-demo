@@ -1,16 +1,22 @@
+from agents.keyvault import get_secret
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient, ContainerClient, BlobBlock, BlobClient, StandardBlobTier
 from agents.blob_storage import blob_storage
 
 import os
 import json
 import io
+from io import BytesIO
 import uuid
+import datetime
 from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-
+date_format="%Y_%m_%d_%H_%M_%S"
+timestamp = datetime.datetime.now().strftime(date_format)
 
 TOC = {
     "A. INTRODUCTION": ["A.1 JTI", "A.2 Our Engagement"],
@@ -70,16 +76,24 @@ def build_doc_from_json(data_json, output_path="drafts/Generated_Document.docx")
             add_paragraph(doc, content)
     
     # ✅ Create output directory if it doesn't exist
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    #os.makedirs(os.path.dirname(output_path), exist_ok=True)   #Removed by Prerit
     
-    print(doc)
-    doc.save(output_path)
-    print(f"Document saved as {output_path}")
-    print("Open the document in Word and press F9 to update the TOC!")
+    
+    # doc.save(output_path)      #Prerit
+    # print(f"Document saved as {output_path}")  #Prerit
+    # print("Open the document in Word and press F9 to update the TOC!")  #Prerit
 
-    output_path = os.path.abspath(output_path)
-    file_name = os.path.basename(output_path)
-    file_path = os.path.dirname(output_path)
+    #output_path = os.path.abspath(output_path)      #Added & Removed by Prerit
+    file_name = os.path.basename(output_path)        #Added by Prerit
+    file_name = f"{file_name.split(".")[0]}_{timestamp}.{file_name.split('.')[1]}"
+    #file_path = os.path.dirname(output_path)        #Added & Removed by Prerit
 
-    blob_storage().upload_blob_file(container_name="rfx-draft",file_path=file_path,file_name=file_name)
+    word_buffer = BytesIO() #Added by Prerit
+    doc.save(word_buffer) #Added by Prerit
+    word_buffer.seek(0) #Added by Prerit
+    
+    blob_storage().writing_docx_file(container_name="rfx-draft", data=word_buffer,blob_name=file_name) #Added by Prerit
+
+    #blob_storage().upload_blob_file(container_name="rfx-draft",file_path=file_path,file_name=file_name) #Added & Removed by Prerit
+    
     return output_path

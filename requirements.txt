@@ -39,3 +39,8 @@ tqdm
 PyYAML
 requests
 SQLAlchemy
+
+#Azure Utils
+azure-storage-blob
+azure-identity
+azure-keyvault
