@@ -1,10 +1,11 @@
 # Core
-streamlit
 pdfplumber
 markdown
 python-pptx
 openpyxl
 extract-msg
+fastapi
+uvicorn[standard]
 
 # LangChain ecosystem
 langchain==0.3.24
